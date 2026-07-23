@@ -1,0 +1,16 @@
+* text=auto
+
+*.asmdef text eol=lf
+*.asset text eol=lf
+*.cs text eol=lf
+*.json text eol=lf
+*.mat text eol=lf
+*.md text eol=lf
+*.meta text eol=lf
+*.prefab text eol=lf
+*.py text eol=lf
+*.txt text eol=lf
+*.unity text eol=lf
+
+*.fbx binary
+*.glb binary

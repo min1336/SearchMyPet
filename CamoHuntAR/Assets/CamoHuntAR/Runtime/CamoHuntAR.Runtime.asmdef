@@ -1,0 +1,12 @@
+{
+  "name": "CamoHuntAR.Runtime",
+  "rootNamespace": "CamoHuntAR",
+  "references": [
+    "Unity.InputSystem",
+    "Unity.XR.ARFoundation",
+    "Unity.XR.ARSubsystems",
+    "Unity.XR.CoreUtils",
+    "UnityEngine.UI"
+  ],
+  "autoReferenced": true
+}
