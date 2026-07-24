@@ -56,10 +56,9 @@ namespace CamoHuntAR.Tests
         }
 
         [Test]
-        public void CharacterPrefabIsNormalizedAndKeepsPreviewMaterialFlow()
+        public void CharacterPrefabIsNormalizedAndPreservesPlacedMaterialDuringPreview()
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterPrefabPath);
-            var previewMaterial = AssetDatabase.LoadAssetAtPath<Material>(CharacterPreviewMaterialPath);
             var placedMaterial = AssetDatabase.LoadAssetAtPath<Material>(CharacterPlacedMaterialPath);
             var instance = Object.Instantiate(prefab);
 
@@ -72,7 +71,7 @@ namespace CamoHuntAR.Tests
                 Assert.That(renderer.bounds.center.z, Is.EqualTo(0.035f).Within(0.005f));
 
                 visual.SetPreview(true);
-                Assert.That(renderer.sharedMaterial, Is.SameAs(previewMaterial));
+                Assert.That(renderer.sharedMaterial, Is.SameAs(placedMaterial));
                 visual.SetPreview(false);
                 Assert.That(renderer.sharedMaterial, Is.SameAs(placedMaterial));
             }
