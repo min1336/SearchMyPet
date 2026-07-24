@@ -451,15 +451,19 @@ namespace CamoHuntAR.Editor
             var confirmButton = CreateButton(
                 safeArea.transform,
                 "ConfirmButton",
-                "배치 확정",
+                "PLACE CHARACTER",
                 new Color(0.10f, 0.68f, 0.55f, 0.96f),
                 font);
             var resetButton = CreateButton(
                 safeArea.transform,
                 "ResetButton",
-                "다시 배치",
+                "RESET POSITION",
                 new Color(0.12f, 0.34f, 0.44f, 0.96f),
                 font);
+            var resetRect = resetButton.GetComponent<RectTransform>();
+            resetRect.anchorMin = resetRect.anchorMax = resetRect.pivot = new Vector2(1f, 1f);
+            resetRect.anchoredPosition = new Vector2(-40f, -250f);
+            resetRect.sizeDelta = new Vector2(300f, 88f);
 
             var paintUi = CreateCamouflageTools(safeArea.transform, font, placementController);
 
@@ -501,24 +505,36 @@ namespace CamoHuntAR.Editor
             var panelRect = panel.GetComponent<RectTransform>();
             panelRect.anchorMin = panelRect.anchorMax = new Vector2(0.5f, 0f);
             panelRect.pivot = new Vector2(0.5f, 0f);
-            panelRect.anchoredPosition = new Vector2(0f, 190f);
-            panelRect.sizeDelta = new Vector2(820f, 330f);
-            panel.GetComponent<Image>().color = new Color(0.02f, 0.08f, 0.12f, 0.86f);
+            panelRect.anchoredPosition = new Vector2(0f, 96f);
+            panelRect.sizeDelta = new Vector2(940f, 620f);
+            panel.GetComponent<Image>().color = new Color(0.018f, 0.055f, 0.071f, 0.94f);
 
-            var hue = CreateToolSlider(panel.transform, "Hue", new Vector2(-250f, 100f), Color.red);
+            CreateUiText(panel.transform, "Title", "CAMOUFLAGE LAB", new Vector2(-220f, 236f),
+                new Vector2(380f, 46f), 30, font, TextAnchor.MiddleLeft, new Color(0.88f, 1f, 0.96f, 1f));
+            CreateUiText(panel.transform, "Subtitle", "Pick a color, then draw directly on the character.", new Vector2(-75f, 197f),
+                new Vector2(670f, 30f), 18, font, TextAnchor.MiddleLeft, new Color(0.60f, 0.76f, 0.78f, 1f));
+            var modeLabel = CreateUiText(panel.transform, "ModeLabel", "DRAW ON CHARACTER", new Vector2(242f, 155f),
+                new Vector2(320f, 32f), 18, font, TextAnchor.MiddleCenter, new Color(0.31f, 1f, 0.79f, 1f));
+
+            var hue = CreateToolSlider(panel.transform, "Hue", new Vector2(-220f, -174f), Color.red);
             var saturation = CreateToolSlider(panel.transform, "Saturation", new Vector2(-250f, 25f), Color.white);
             var value = CreateToolSlider(panel.transform, "Value", new Vector2(-250f, -50f), Color.white);
+            saturation.gameObject.SetActive(false);
+            value.gameObject.SetActive(false);
+            var palette = CreateHsvPalette(panel.transform, new Vector2(-220f, 8f), hue, font);
             var preview = new GameObject("SelectedColor", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             preview.transform.SetParent(panel.transform, false);
             var previewRect = preview.GetComponent<RectTransform>();
-            previewRect.anchoredPosition = new Vector2(-250f, -125f);
-            previewRect.sizeDelta = new Vector2(340f, 42f);
+            previewRect.anchoredPosition = new Vector2(242f, -205f);
+            previewRect.sizeDelta = new Vector2(330f, 88f);
             var previewImage = preview.GetComponent<Image>();
             previewImage.color = Color.black;
+            CreateUiText(preview.transform, "Label", "SELECTED COLOR", Vector2.zero,
+                new Vector2(290f, 42f), 17, font, TextAnchor.MiddleCenter, Color.white);
 
-            var paint = CreateToolButton(panel.transform, "PaintButton", "그리기", new Vector2(210f, 95f), font);
-            var character = CreateToolButton(panel.transform, "CharacterEyedropperButton", "캐릭터 스포이드", new Vector2(210f, 25f), font);
-            var reality = CreateToolButton(panel.transform, "RealityEyedropperButton", "현실 스포이드", new Vector2(210f, -45f), font);
+            var paint = CreateToolButton(panel.transform, "PaintButton", "DRAW", new Vector2(242f, 84f), font);
+            var character = CreateToolButton(panel.transform, "CharacterEyedropperButton", "PICK FROM CHARACTER", new Vector2(242f, -18f), font);
+            var reality = CreateToolButton(panel.transform, "RealityEyedropperButton", "PICK FROM CAMERA", new Vector2(242f, -120f), font);
 
             // The bridge must remain active while its visual panel is hidden so
             // it can receive the placement-complete event.
@@ -531,9 +547,72 @@ namespace CamoHuntAR.Editor
             SetObjectReference(controller, "hueSlider", hue);
             SetObjectReference(controller, "saturationSlider", saturation);
             SetObjectReference(controller, "valueSlider", value);
+            SetObjectReference(controller, "palette", palette);
             SetObjectReference(controller, "selectedColorPreview", previewImage);
+            SetObjectReference(controller, "modeLabel", modeLabel);
             panel.SetActive(false);
             return controller;
+        }
+
+        private static HsvPaletteControl CreateHsvPalette(Transform parent, Vector2 position, Slider hue, Font font)
+        {
+            var root = new GameObject("HsvPalette", typeof(RectTransform), typeof(HsvPaletteControl));
+            root.transform.SetParent(parent, false);
+            var rect = root.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(340f, 340f);
+            var imageObject = new GameObject("SaturationValue", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+            imageObject.transform.SetParent(root.transform, false);
+            Stretch(imageObject.GetComponent<RectTransform>());
+            var indicator = CreateUiText(imageObject.transform, "SelectionIndicator", "+", Vector2.zero,
+                new Vector2(34f, 34f), 30, font, TextAnchor.MiddleCenter, Color.white).rectTransform;
+
+            var hueImageObject = new GameObject("HueGradient", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+            hueImageObject.transform.SetParent(hue.transform, false);
+            Stretch(hueImageObject.GetComponent<RectTransform>());
+            hueImageObject.transform.SetAsFirstSibling();
+            hueImageObject.GetComponent<RawImage>().raycastTarget = true;
+            var hueBackground = hue.transform.Find("Background");
+            if (hueBackground != null)
+                hueBackground.gameObject.SetActive(false);
+            var hueFill = hue.transform.Find("Fill");
+            if (hueFill != null)
+                hueFill.gameObject.SetActive(false);
+
+            var palette = root.GetComponent<HsvPaletteControl>();
+            SetObjectReference(palette, "saturationValueImage", imageObject.GetComponent<RawImage>());
+            SetObjectReference(palette, "hueImage", hueImageObject.GetComponent<RawImage>());
+            SetObjectReference(palette, "hueSlider", hue);
+            SetObjectReference(palette, "selectionIndicator", indicator);
+            return palette;
+        }
+
+        private static Text CreateUiText(
+            Transform parent,
+            string name,
+            string value,
+            Vector2 position,
+            Vector2 size,
+            int fontSize,
+            Font font,
+            TextAnchor alignment,
+            Color color)
+        {
+            var textObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            textObject.transform.SetParent(parent, false);
+            var rect = textObject.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            var text = textObject.GetComponent<Text>();
+            text.font = font;
+            text.fontSize = fontSize;
+            text.alignment = alignment;
+            text.color = color;
+            text.raycastTarget = false;
+            text.text = value;
+            return text;
         }
 
         private static void EnsureCamouflageTools(Scene scene)
@@ -554,12 +633,12 @@ namespace CamoHuntAR.Editor
 
         private static Button CreateToolButton(Transform parent, string name, string label, Vector2 position, Font font)
         {
-            var button = CreateButton(parent, name, label, new Color(0.10f, 0.45f, 0.50f, 0.95f), font);
+            var button = CreateButton(parent, name, label, new Color(0.10f, 0.22f, 0.27f, 0.96f), font);
             var rect = button.GetComponent<RectTransform>();
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(310f, 56f);
-            button.GetComponentInChildren<Text>(true).fontSize = 22;
+            rect.sizeDelta = new Vector2(330f, 88f);
+            button.GetComponentInChildren<Text>(true).fontSize = 24;
             return button;
         }
 

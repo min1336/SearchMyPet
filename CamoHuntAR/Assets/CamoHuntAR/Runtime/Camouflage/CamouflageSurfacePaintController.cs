@@ -40,6 +40,14 @@ namespace CamoHuntAR
             if (contact.Phase == PointerContactPhase.Began &&
                 EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(contact.PointerId))
                 return;
+            if (activePointerId == contact.PointerId &&
+                EventSystem.current != null &&
+                EventSystem.current.IsPointerOverGameObject(contact.PointerId))
+            {
+                session.CompleteStroke();
+                activePointerId = -1;
+                return;
+            }
 
             if (paintCamera == null)
                 paintCamera = Camera.main;
