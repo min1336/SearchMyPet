@@ -34,6 +34,8 @@ namespace CamoHuntAR
         public string LastError { get; private set; } = string.Empty;
 
         public event Action<PlacementState> StateChanged;
+        public event Action<CamouflageSurfacePaintController> CharacterPlaced;
+        public event Action CharacterReset;
 
         private void Awake()
         {
@@ -181,6 +183,7 @@ namespace CamoHuntAR
                     visual.SetPreview(false);
 
                 _stateMachine.MarkPlaced();
+                CharacterPlaced?.Invoke(_character.GetComponent<CamouflageSurfacePaintController>());
                 SetPlaneVisualization(false);
                 ApplyControls();
             }
@@ -229,6 +232,8 @@ namespace CamoHuntAR
                 Destroy(_character);
                 _character = null;
             }
+
+            CharacterReset?.Invoke();
 
             LastError = string.Empty;
             _previewPlaneId = TrackableId.invalidId;

@@ -10,6 +10,8 @@ namespace CamoHuntAR
         [SerializeField] private Renderer[] targetRenderers;
         [SerializeField, Range(0f, 1f)] private float previewAlpha = 0.55f;
 
+        public bool IsPreview { get; private set; }
+
         public void Configure(Renderer[] renderers)
         {
             targetRenderers = renderers;
@@ -22,6 +24,7 @@ namespace CamoHuntAR
 
         public void SetPreview(bool isPreview)
         {
+            IsPreview = isPreview;
             if (targetRenderers == null)
                 return;
 

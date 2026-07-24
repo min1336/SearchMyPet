@@ -20,6 +20,38 @@ namespace CamoHuntAR
         public int PaletteIndex => paletteIndex;
     }
 
+    /// <summary>
+    /// One brush mark on the character's UV map.  The region-based fields are
+    /// retained below only so older local prototypes can still be opened.
+    /// </summary>
+    [Serializable]
+    public struct CamouflageStroke
+    {
+        [SerializeField] private List<Vector2> points;
+        [SerializeField] private Color32 color;
+        [SerializeField] private float radius;
+
+        public CamouflageStroke(Vector2 uv, Color32 color, float radius)
+        {
+            points = new List<Vector2> { uv };
+            this.color = color;
+            this.radius = radius;
+        }
+
+        public CamouflageStroke(IEnumerable<Vector2> points, Color32 color, float radius)
+        {
+            this.points = points == null ? null : new List<Vector2>(points);
+            this.color = color;
+            this.radius = radius;
+        }
+
+        public IReadOnlyList<Vector2> Points =>
+            points == null ? Array.Empty<Vector2>() : points.AsReadOnly();
+        public Vector2 Uv => Points.Count == 0 ? default : Points[0];
+        public Color32 Color => color;
+        public float Radius => radius;
+    }
+
     [Serializable]
     public sealed class CamouflageData
     {
@@ -28,6 +60,8 @@ namespace CamoHuntAR
         [SerializeField] private int paletteVersion = CurrentPaletteVersion;
         [SerializeField] private List<CamouflageRegionColor> regions =
             new List<CamouflageRegionColor>();
+        [SerializeField] private List<CamouflageStroke> strokes =
+            new List<CamouflageStroke>();
 
         public int PaletteVersion => paletteVersion;
 
@@ -35,6 +69,19 @@ namespace CamoHuntAR
             regions == null
                 ? Array.Empty<CamouflageRegionColor>()
                 : regions.AsReadOnly();
+
+        public IReadOnlyList<CamouflageStroke> Strokes =>
+            strokes == null ? Array.Empty<CamouflageStroke>() : strokes.AsReadOnly();
+
+        public static CamouflageData CreateEmpty()
+        {
+            return new CamouflageData
+            {
+                paletteVersion = CurrentPaletteVersion,
+                regions = new List<CamouflageRegionColor>(),
+                strokes = new List<CamouflageStroke>(),
+            };
+        }
 
         public static CamouflageData CreateDefault(IEnumerable<string> regionIds)
         {
@@ -67,6 +114,7 @@ namespace CamoHuntAR
             {
                 paletteVersion = CurrentPaletteVersion,
                 regions = defaultRegions,
+                strokes = new List<CamouflageStroke>(),
             };
         }
 
@@ -78,8 +126,41 @@ namespace CamoHuntAR
                 regions = regions == null
                     ? new List<CamouflageRegionColor>()
                     : new List<CamouflageRegionColor>(regions),
+                strokes = strokes == null
+                    ? new List<CamouflageStroke>()
+                    : new List<CamouflageStroke>(strokes),
             };
         }
+
+        public bool TryAddStroke(Vector2 uv, Color32 color, float radius)
+        {
+            return TryAddStroke(new CamouflageStroke(uv, color, radius));
+        }
+
+        public bool TryAddStroke(CamouflageStroke stroke)
+        {
+            if (stroke.Points.Count == 0 || stroke.Points.Count > 512 ||
+                stroke.Radius <= 0f || stroke.Radius > 0.5f ||
+                !IsFinite(stroke.Radius))
+                return false;
+
+            foreach (var uv in stroke.Points)
+            {
+                if (!IsFinite(uv.x) || !IsFinite(uv.y) ||
+                    uv.x < 0f || uv.x > 1f || uv.y < 0f || uv.y > 1f)
+                    return false;
+            }
+
+            if (strokes == null)
+                strokes = new List<CamouflageStroke>();
+            if (strokes.Count >= 4096)
+                return false;
+
+            strokes.Add(new CamouflageStroke(stroke.Points, stroke.Color, stroke.Radius));
+            return true;
+        }
+
+        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
         public bool TrySetColor(
             string regionId,

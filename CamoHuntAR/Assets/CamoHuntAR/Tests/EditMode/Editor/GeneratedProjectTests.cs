@@ -15,7 +15,7 @@ namespace CamoHuntAR.Tests
     public sealed class GeneratedProjectTests
     {
         private const string CharacterPrefabPath = "Assets/CamoHuntAR/Prefabs/CamoCritter.prefab";
-        private const string CharacterModelPath = "Assets/CamoHuntAR/Art/MeshyOpenArmsCharacter.fbx";
+        private const string CharacterModelPath = "Assets/CamoHuntAR/Art/MeshyOpenArmsCharacter_UniqueUV.fbx";
         private const string CharacterPreviewMaterialPath =
             "Assets/CamoHuntAR/Materials/CharacterPreview.mat";
         private const string CharacterPlacedMaterialPath =
@@ -24,7 +24,7 @@ namespace CamoHuntAR.Tests
         private const string ScenePath = "Assets/CamoHuntAR/Scenes/ARPlacementScene.unity";
 
         [Test]
-        public void CharacterPrefabHasOneColliderAndPlacementVisual()
+        public void CharacterPrefabHasPlacementAndUvPaintingColliders()
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterPrefabPath);
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterModelPath);
@@ -32,16 +32,27 @@ namespace CamoHuntAR.Tests
             Assert.That(prefab, Is.Not.Null);
             Assert.That(model, Is.Not.Null);
             Assert.That(prefab.GetComponent<PlacementVisual>(), Is.Not.Null);
-            Assert.That(prefab.GetComponentsInChildren<Collider>(true), Has.Length.EqualTo(1));
+            Assert.That(prefab.GetComponent<CapsuleCollider>(), Is.Not.Null);
+            Assert.That(prefab.GetComponent<CamouflageTexturePainter>(), Is.Not.Null);
+            Assert.That(prefab.GetComponent<CamouflageSurfacePaintController>(), Is.Not.Null);
+            Assert.That(prefab.GetComponentsInChildren<MeshCollider>(true), Has.Length.EqualTo(1));
             Assert.That(prefab.transform.Find("VisualRoot/MeshyOpenArmsCharacter"), Is.Not.Null);
             Assert.That(prefab.GetComponentsInChildren<Renderer>(true), Has.Length.EqualTo(1));
 
             var skinnedRenderer = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true);
             Assert.That(skinnedRenderer, Is.Not.Null);
             Assert.That(skinnedRenderer.sharedMesh, Is.Not.Null);
-            Assert.That(skinnedRenderer.sharedMesh.vertexCount, Is.EqualTo(19259));
+            // Unity splits vertices along the new non-overlapping UV island borders.
+            Assert.That(skinnedRenderer.sharedMesh.vertexCount, Is.EqualTo(20125));
             Assert.That(skinnedRenderer.sharedMesh.triangles, Has.Length.EqualTo(108576));
             Assert.That(skinnedRenderer.sharedMesh.bindposes, Has.Length.EqualTo(24));
+            Assert.That(skinnedRenderer.GetComponent<MeshCollider>().sharedMesh,
+                Is.SameAs(skinnedRenderer.sharedMesh));
+
+            var painterProperties = new SerializedObject(prefab.GetComponent<CamouflageTexturePainter>());
+            Assert.That(painterProperties.FindProperty("targetRenderer").objectReferenceValue,
+                Is.SameAs(skinnedRenderer));
+            Assert.That(painterProperties.FindProperty("materialIndex").intValue, Is.EqualTo(0));
 
             var importer = AssetImporter.GetAtPath(CharacterModelPath) as ModelImporter;
             Assert.That(importer, Is.Not.Null);
@@ -106,6 +117,7 @@ namespace CamoHuntAR.Tests
                 AssertSingle<ARSession>(scene);
                 var origin = AssertSingle<XROrigin>(scene);
                 Assert.That(origin.Camera, Is.Not.Null);
+                var cameraSampler = AssertSingle<CameraFrameColorSampler>(scene);
                 var planeManager = AssertSingle<ARPlaneManager>(scene);
                 Assert.That(planeManager.planePrefab, Is.Not.Null);
                 AssertSingle<ARRaycastManager>(scene);
@@ -129,6 +141,7 @@ namespace CamoHuntAR.Tests
                     "planeManager",
                     "placementController",
                     "statusText");
+                AssertSerializedReferences(cameraSampler, "cameraManager");
             }
             finally
             {

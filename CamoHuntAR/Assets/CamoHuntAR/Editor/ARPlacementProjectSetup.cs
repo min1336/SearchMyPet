@@ -30,7 +30,7 @@ namespace CamoHuntAR.Editor
         private const string PreviewMaterialPath = MaterialsFolder + "/CharacterPreview.mat";
         private const string PlacedMaterialPath = MaterialsFolder + "/CharacterPlaced.mat";
         private const string PlaneMaterialPath = MaterialsFolder + "/DetectedPlane.mat";
-        private const string CharacterModelPath = ArtFolder + "/MeshyOpenArmsCharacter.fbx";
+        private const string CharacterModelPath = ArtFolder + "/MeshyOpenArmsCharacter_UniqueUV.fbx";
         private const string CharacterPrefabPath = PrefabsFolder + "/CamoCritter.prefab";
         private const string PlanePrefabPath = PrefabsFolder + "/DetectedPlane.prefab";
         private const string ScenePath = ScenesFolder + "/ARPlacementScene.unity";
@@ -53,6 +53,10 @@ namespace CamoHuntAR.Editor
 
         private static void Build()
         {
+            if (EditorApplication.isPlaying)
+                throw new InvalidOperationException(
+                    "Stop Play Mode before running CAMO HUNT/Build AR Placement Prototype.");
+
             EnsureFolders();
             ConfigureCharacterModelImporter();
             ConfigurePlayerSettings();
@@ -312,6 +316,15 @@ namespace CamoHuntAR.Editor
                     renderer.sharedMaterials = Enumerable.Repeat(placed, materialCount).ToArray();
                 }
 
+                var paintRenderer = modelInstance.GetComponentInChildren<SkinnedMeshRenderer>(true);
+                if (paintRenderer == null || paintRenderer.sharedMesh == null)
+                    throw new InvalidOperationException("The character requires a skinned mesh with UVs for painting.");
+
+                // Raycasts against this mesh supply RaycastHit.textureCoord to the brush.
+                var paintCollider = GetOrAddComponent<MeshCollider>(paintRenderer.gameObject);
+                paintCollider.sharedMesh = paintRenderer.sharedMesh;
+                paintCollider.convex = false;
+
                 var collider = root.AddComponent<CapsuleCollider>();
                 var characterBounds = CalculateRendererBounds(renderers);
                 collider.center = root.transform.InverseTransformPoint(characterBounds.center);
@@ -322,6 +335,10 @@ namespace CamoHuntAR.Editor
                 var visual = root.AddComponent<PlacementVisual>();
                 visual.Configure(renderers, preview, placed);
                 visual.SetPreview(false);
+
+                var painter = root.AddComponent<CamouflageTexturePainter>();
+                painter.ConfigureForPrefab(paintRenderer, 0, 512);
+                root.AddComponent<CamouflageSurfacePaintController>();
                 return SavePrefab(root, CharacterPrefabPath);
             }
             finally
@@ -376,6 +393,10 @@ namespace CamoHuntAR.Editor
                 try
                 {
                     ValidateScene(existingScene);
+                    EnsureCamouflageTools(existingScene);
+                    EditorSceneManager.MarkSceneDirty(existingScene);
+                    if (!EditorSceneManager.SaveScene(existingScene, ScenePath))
+                        throw new InvalidOperationException("Failed to update camouflage tools in the existing scene.");
                     UpdateBuildSettings();
                     return;
                 }
@@ -400,6 +421,9 @@ namespace CamoHuntAR.Editor
             var arCamera = xrOrigin.Camera;
             if (arCamera == null)
                 throw new InvalidOperationException("XR Origin does not have an AR camera.");
+            var cameraManager = GetOrAddComponent<ARCameraManager>(arCamera.gameObject);
+            var cameraColorSampler = GetOrAddComponent<CameraFrameColorSampler>(arCamera.gameObject);
+            cameraColorSampler.Configure(cameraManager);
 
             var planeManager = GetOrAddComponent<ARPlaneManager>(xrOrigin.gameObject);
             var raycastManager = GetOrAddComponent<ARRaycastManager>(xrOrigin.gameObject);
@@ -437,6 +461,8 @@ namespace CamoHuntAR.Editor
                 new Color(0.12f, 0.34f, 0.44f, 0.96f),
                 font);
 
+            var paintUi = CreateCamouflageTools(safeArea.transform, font, placementController);
+
             var fontBinder = canvas.gameObject.AddComponent<RuntimeFontBinder>();
             SetObjectReferences(fontBinder, "targets", new[]
             {
@@ -466,6 +492,99 @@ namespace CamoHuntAR.Editor
 
             UpdateBuildSettings();
             ValidateScene(scene);
+        }
+
+        private static CamouflagePaintUiController CreateCamouflageTools(Transform parent, Font font, ARPlacementController placementController)
+        {
+            var panel = new GameObject("CamouflageTools", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            var panelRect = panel.GetComponent<RectTransform>();
+            panelRect.anchorMin = panelRect.anchorMax = new Vector2(0.5f, 0f);
+            panelRect.pivot = new Vector2(0.5f, 0f);
+            panelRect.anchoredPosition = new Vector2(0f, 190f);
+            panelRect.sizeDelta = new Vector2(820f, 330f);
+            panel.GetComponent<Image>().color = new Color(0.02f, 0.08f, 0.12f, 0.86f);
+
+            var hue = CreateToolSlider(panel.transform, "Hue", new Vector2(-250f, 100f), Color.red);
+            var saturation = CreateToolSlider(panel.transform, "Saturation", new Vector2(-250f, 25f), Color.white);
+            var value = CreateToolSlider(panel.transform, "Value", new Vector2(-250f, -50f), Color.white);
+            var preview = new GameObject("SelectedColor", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            preview.transform.SetParent(panel.transform, false);
+            var previewRect = preview.GetComponent<RectTransform>();
+            previewRect.anchoredPosition = new Vector2(-250f, -125f);
+            previewRect.sizeDelta = new Vector2(340f, 42f);
+            var previewImage = preview.GetComponent<Image>();
+            previewImage.color = Color.black;
+
+            var paint = CreateToolButton(panel.transform, "PaintButton", "그리기", new Vector2(210f, 95f), font);
+            var character = CreateToolButton(panel.transform, "CharacterEyedropperButton", "캐릭터 스포이드", new Vector2(210f, 25f), font);
+            var reality = CreateToolButton(panel.transform, "RealityEyedropperButton", "현실 스포이드", new Vector2(210f, -45f), font);
+
+            // The bridge must remain active while its visual panel is hidden so
+            // it can receive the placement-complete event.
+            var controller = parent.gameObject.AddComponent<CamouflagePaintUiController>();
+            SetObjectReference(controller, "placementController", placementController);
+            SetObjectReference(controller, "toolsPanel", panel);
+            SetObjectReference(controller, "paintButton", paint);
+            SetObjectReference(controller, "characterEyedropperButton", character);
+            SetObjectReference(controller, "realityEyedropperButton", reality);
+            SetObjectReference(controller, "hueSlider", hue);
+            SetObjectReference(controller, "saturationSlider", saturation);
+            SetObjectReference(controller, "valueSlider", value);
+            SetObjectReference(controller, "selectedColorPreview", previewImage);
+            panel.SetActive(false);
+            return controller;
+        }
+
+        private static void EnsureCamouflageTools(Scene scene)
+        {
+            var safeArea = FindSingleComponent<SafeAreaFitter>(scene).transform;
+            // Upgrade deterministically: older generated scenes can contain an
+            // inactive bridge on the hidden panel, which never receives events.
+            var existingPanel = safeArea.Find("CamouflageTools");
+            if (existingPanel != null)
+                Object.DestroyImmediate(existingPanel.gameObject);
+            foreach (var existingBridge in safeArea.GetComponents<CamouflagePaintUiController>())
+                Object.DestroyImmediate(existingBridge);
+
+            var placement = FindSingleComponent<ARPlacementController>(scene);
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            CreateCamouflageTools(safeArea, font, placement);
+        }
+
+        private static Button CreateToolButton(Transform parent, string name, string label, Vector2 position, Font font)
+        {
+            var button = CreateButton(parent, name, label, new Color(0.10f, 0.45f, 0.50f, 0.95f), font);
+            var rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(310f, 56f);
+            button.GetComponentInChildren<Text>(true).fontSize = 22;
+            return button;
+        }
+
+        private static Slider CreateToolSlider(Transform parent, string name, Vector2 position, Color color)
+        {
+            var root = new GameObject(name, typeof(RectTransform), typeof(Slider));
+            root.transform.SetParent(parent, false);
+            var rect = root.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(340f, 32f);
+            var background = new GameObject("Background", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            background.transform.SetParent(root.transform, false);
+            Stretch(background.GetComponent<RectTransform>());
+            background.GetComponent<Image>().color = new Color(0.16f, 0.20f, 0.24f, 1f);
+            var fill = new GameObject("Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            fill.transform.SetParent(root.transform, false);
+            var fillRect = fill.GetComponent<RectTransform>();
+            fillRect.anchorMin = new Vector2(0f, 0f); fillRect.anchorMax = new Vector2(1f, 1f);
+            fillRect.offsetMin = new Vector2(4f, 4f); fillRect.offsetMax = new Vector2(-4f, -4f);
+            fill.GetComponent<Image>().color = color;
+            var slider = root.GetComponent<Slider>();
+            slider.minValue = 0f; slider.maxValue = 1f; slider.value = name == "Value" ? 1f : 0f;
+            slider.fillRect = fillRect;
+            return slider;
         }
 
         private static Canvas CreateCanvas()
@@ -610,6 +729,7 @@ namespace CamoHuntAR.Editor
         {
             FindSingleComponent<ARSession>(scene);
             var xrOrigin = FindSingleComponent<XROrigin>(scene);
+            var cameraSampler = FindSingleComponent<CameraFrameColorSampler>(scene);
             var planeManager = FindSingleComponent<ARPlaneManager>(scene);
             FindSingleComponent<ARRaycastManager>(scene);
             FindSingleComponent<ARAnchorManager>(scene);
@@ -623,6 +743,7 @@ namespace CamoHuntAR.Editor
 
             if (xrOrigin.Camera == null)
                 throw new InvalidOperationException("XR Origin camera reference is missing.");
+            RequireObjectReference(cameraSampler, "cameraManager");
             if (planeManager.planePrefab == null)
                 throw new InvalidOperationException("AR Plane Manager prefab reference is missing.");
 
