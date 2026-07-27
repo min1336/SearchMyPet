@@ -119,6 +119,13 @@ namespace CamoHuntAR.Editor
                 importer.materialImportMode = ModelImporterMaterialImportMode.None;
                 changed = true;
             }
+            if (!importer.isReadable)
+            {
+                // Surface painting reconstructs UV coordinates from raycast
+                // triangle data at runtime, including in IL2CPP iOS builds.
+                importer.isReadable = true;
+                changed = true;
+            }
 
             if (changed)
                 importer.SaveAndReimport();
@@ -490,6 +497,7 @@ namespace CamoHuntAR.Editor
             SetObjectReference(placementController, "resetButton", resetButton);
             SetObjectReference(paintEditorController, "placementController", placementController);
             SetObjectReference(paintEditorController, "arCamera", arCamera);
+            SetObjectReference(paintEditorController, "cameraSampler", cameraColorSampler);
             SetObjectReference(trackingController, "planeManager", planeManager);
             SetObjectReference(trackingController, "placementController", placementController);
             SetObjectReference(trackingController, "statusText", statusText);
@@ -649,6 +657,7 @@ namespace CamoHuntAR.Editor
             var xrOrigin = FindSingleComponent<XROrigin>(scene);
             SetObjectReference(paintEditor, "placementController", placement);
             SetObjectReference(paintEditor, "arCamera", xrOrigin.Camera);
+            SetObjectReference(paintEditor, "cameraSampler", FindSingleComponent<CameraFrameColorSampler>(scene));
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             CreateCamouflageTools(safeArea, font, placement, paintEditor);
         }
@@ -858,6 +867,7 @@ namespace CamoHuntAR.Editor
             RequireObjectReference(placementController, "resetButton");
             RequireObjectReference(paintEditorController, "placementController");
             RequireObjectReference(paintEditorController, "arCamera");
+            RequireObjectReference(paintEditorController, "cameraSampler");
             RequireObjectReference(trackingController, "planeManager");
             RequireObjectReference(trackingController, "placementController");
             RequireObjectReference(trackingController, "statusText");

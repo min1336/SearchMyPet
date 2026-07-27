@@ -14,9 +14,67 @@ namespace CamoHuntAR
     {
         [SerializeField] private ARCameraManager cameraManager;
 
+        private Matrix4x4? displayMatrix;
+
+        private void OnEnable()
+        {
+            if (cameraManager != null)
+                cameraManager.frameReceived += OnCameraFrameReceived;
+        }
+
+        private void OnDisable()
+        {
+            if (cameraManager != null)
+                cameraManager.frameReceived -= OnCameraFrameReceived;
+        }
+
         public void Configure(ARCameraManager manager)
         {
+            if (cameraManager != null)
+                cameraManager.frameReceived -= OnCameraFrameReceived;
             cameraManager = manager;
+            if (isActiveAndEnabled && cameraManager != null)
+                cameraManager.frameReceived += OnCameraFrameReceived;
+        }
+
+        public bool TryCreateSnapshot(out Texture2D snapshot, out Matrix4x4 textureTransform)
+        {
+            snapshot = null;
+            textureTransform = displayMatrix ?? Matrix4x4.identity;
+            if (cameraManager == null || !cameraManager.TryAcquireLatestCpuImage(out var image))
+                return false;
+
+            try
+            {
+                var parameters = new XRCpuImage.ConversionParams(
+                    image,
+                    TextureFormat.RGBA32,
+                    XRCpuImage.Transformation.None);
+                var bytes = new NativeArray<byte>(
+                    image.GetConvertedDataSize(parameters),
+                    Allocator.Temp);
+                try
+                {
+                    image.Convert(parameters, bytes);
+                    snapshot = new Texture2D(image.width, image.height, TextureFormat.RGBA32, false)
+                    {
+                        name = "TemporaryPaintEditorBackground",
+                        wrapMode = TextureWrapMode.Clamp,
+                        filterMode = FilterMode.Bilinear,
+                    };
+                    snapshot.LoadRawTextureData(bytes);
+                    snapshot.Apply(false, false);
+                    return true;
+                }
+                finally
+                {
+                    bytes.Dispose();
+                }
+            }
+            finally
+            {
+                image.Dispose();
+            }
         }
 
         public bool TrySampleViewport(Vector2 viewportPosition, out Color32 color)
@@ -57,6 +115,11 @@ namespace CamoHuntAR
             {
                 image.Dispose();
             }
+        }
+
+        private void OnCameraFrameReceived(ARCameraFrameEventArgs frame)
+        {
+            displayMatrix = frame.displayMatrix;
         }
     }
 }

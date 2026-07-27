@@ -12,12 +12,16 @@ namespace CamoHuntAR
 
         [SerializeField] private ARPlacementController placementController;
         [SerializeField] private Camera arCamera;
+        [SerializeField] private CameraFrameColorSampler cameraSampler;
         [SerializeField, Min(0.1f)] private float rotationDegreesPerScreenWidth = 220f;
 
         private readonly List<LayerState> originalLayers = new List<LayerState>();
         private CamouflageSurfacePaintController target;
         private Camera editorCamera;
         private Transform editorPivot;
+        private GameObject backgroundQuad;
+        private Material backgroundMaterial;
+        private Texture2D backgroundTexture;
         private Transform originalParent;
         private Vector3 originalLocalPosition;
         private Quaternion originalLocalRotation;
@@ -117,6 +121,7 @@ namespace CamoHuntAR
             target.transform.localScale = Vector3.one;
 
             editorCamera = CreateEditorCamera(target.transform);
+            CreateFrozenBackground();
             if (arCamera != null)
                 arCamera.enabled = false;
             target.SetPaintCamera(editorCamera);
@@ -142,6 +147,47 @@ namespace CamoHuntAR
             return cameraComponent;
         }
 
+        private void CreateFrozenBackground()
+        {
+            if (cameraSampler == null ||
+                !cameraSampler.TryCreateSnapshot(out backgroundTexture, out var textureTransform))
+            {
+                return;
+            }
+
+            backgroundQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            var collider = backgroundQuad.GetComponent<Collider>();
+            if (collider != null)
+                Destroy(collider);
+            backgroundQuad.name = "FrozenPaintEditorBackground";
+            backgroundQuad.layer = EditingLayer;
+            backgroundQuad.transform.SetParent(editorCamera.transform, false);
+            const float distance = 2f;
+            backgroundQuad.transform.localPosition = Vector3.forward * distance;
+            backgroundQuad.transform.localRotation = Quaternion.identity;
+            var height = 2f * distance * Mathf.Tan(editorCamera.fieldOfView * Mathf.Deg2Rad * 0.5f);
+            backgroundQuad.transform.localScale = new Vector3(height * editorCamera.aspect, height, 1f);
+
+            backgroundMaterial = new Material(Shader.Find("Unlit/Texture"));
+            backgroundMaterial.mainTexture = backgroundTexture;
+            backgroundQuad.GetComponent<MeshRenderer>().material = backgroundMaterial;
+
+            var mesh = backgroundQuad.GetComponent<MeshFilter>().mesh;
+            mesh.uv = new[]
+            {
+                TransformViewportPoint(textureTransform, new Vector2(0f, 0f)),
+                TransformViewportPoint(textureTransform, new Vector2(1f, 0f)),
+                TransformViewportPoint(textureTransform, new Vector2(0f, 1f)),
+                TransformViewportPoint(textureTransform, new Vector2(1f, 1f)),
+            };
+        }
+
+        private static Vector2 TransformViewportPoint(Matrix4x4 transform, Vector2 point)
+        {
+            var transformed = transform.MultiplyPoint3x4(new Vector3(point.x, point.y, 0f));
+            return new Vector2(transformed.x, transformed.y);
+        }
+
         private void CancelEditing() => RestoreArPresentation();
 
         private void RestoreArPresentation()
@@ -160,12 +206,21 @@ namespace CamoHuntAR
                 Destroy(editorCamera.gameObject);
             if (editorPivot != null)
                 Destroy(editorPivot.gameObject);
+            if (backgroundQuad != null)
+                Destroy(backgroundQuad);
+            if (backgroundMaterial != null)
+                Destroy(backgroundMaterial);
+            if (backgroundTexture != null)
+                Destroy(backgroundTexture);
             if (arCamera != null)
                 arCamera.enabled = true;
 
             target = null;
             editorCamera = null;
             editorPivot = null;
+            backgroundQuad = null;
+            backgroundMaterial = null;
+            backgroundTexture = null;
             originalParent = null;
             rotating = false;
             rotationPointerId = -1;

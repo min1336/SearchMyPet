@@ -58,6 +58,7 @@ namespace CamoHuntAR.Tests
             Assert.That(importer, Is.Not.Null);
             Assert.That(importer.importAnimation, Is.False);
             Assert.That(importer.materialImportMode, Is.EqualTo(ModelImporterMaterialImportMode.None));
+            Assert.That(importer.isReadable, Is.True);
 
             var importedClips = AssetDatabase.LoadAllAssetsAtPath(CharacterModelPath)
                 .OfType<AnimationClip>()
