@@ -17,7 +17,7 @@ namespace CamoHuntAR
         private IEnumerator Start()
         {
 #if UNITY_IOS && !UNITY_EDITOR
-            if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+            if (IosCameraAuthorization.GetState() == CameraPermissionState.Unknown)
                 yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
 
             RefreshCameraPermissionState();
@@ -77,9 +77,7 @@ namespace CamoHuntAR
 #if UNITY_IOS && !UNITY_EDITOR
         private void RefreshCameraPermissionState()
         {
-            _cameraPermissionState = Application.HasUserAuthorization(UserAuthorization.WebCam)
-                ? CameraPermissionState.Granted
-                : CameraPermissionState.Denied;
+            _cameraPermissionState = IosCameraAuthorization.GetState();
         }
 #endif
     }
