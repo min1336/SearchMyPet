@@ -29,6 +29,7 @@ namespace CamoHuntAR
         private TrackableId _previewPlaneId;
         private bool _isConfirming;
         private bool _listenersAttached;
+        private bool _showPlaneVisualization = true;
 
         public PlacementState State => _stateMachine.Current;
         public string LastError { get; private set; } = string.Empty;
@@ -39,11 +40,9 @@ namespace CamoHuntAR
 
         private void Awake()
         {
+            ConfigurePlaneDetection();
             if (planeManager != null)
-            {
-                planeManager.requestedDetectionMode =
-                    PlaneDetectionMode.Horizontal | PlaneDetectionMode.Vertical;
-            }
+                planeManager.trackablesChanged.AddListener(OnPlanesChanged);
 
             _stateMachine.Changed += OnStateChanged;
             AttachButtonListeners();
@@ -60,6 +59,8 @@ namespace CamoHuntAR
         private void OnDestroy()
         {
             _stateMachine.Changed -= OnStateChanged;
+            if (planeManager != null)
+                planeManager.trackablesChanged.RemoveListener(OnPlanesChanged);
             DetachButtonListeners();
             CleanupOwnedObjects();
         }
@@ -358,11 +359,41 @@ namespace CamoHuntAR
             if (planeManager == null)
                 return;
 
-            planeManager.enabled = visible;
+            _showPlaneVisualization = visible;
+            ConfigurePlaneDetection();
+            if (!planeManager.enabled)
+                planeManager.enabled = true;
+
             foreach (var plane in planeManager.trackables)
             {
                 if (plane != null)
                     plane.gameObject.SetActive(visible);
+            }
+        }
+
+        private void ConfigurePlaneDetection()
+        {
+            if (planeManager == null)
+                return;
+
+            planeManager.requestedDetectionMode =
+                PlaneDetectionMode.Horizontal | PlaneDetectionMode.Vertical;
+        }
+
+        private void OnPlanesChanged(ARTrackablesChangedEventArgs<ARPlane> changes)
+        {
+            SetPlaneObjectsActive(changes.added, _showPlaneVisualization);
+            SetPlaneObjectsActive(changes.updated, _showPlaneVisualization);
+        }
+
+        private static void SetPlaneObjectsActive(
+            Unity.XR.CoreUtils.Collections.ReadOnlyList<ARPlane> planes,
+            bool active)
+        {
+            foreach (var plane in planes)
+            {
+                if (plane != null)
+                    plane.gameObject.SetActive(active);
             }
         }
 

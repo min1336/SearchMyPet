@@ -101,7 +101,10 @@ namespace CamoHuntAR.Tests
 
             Assert.That(controller.LastError, Is.Empty);
             Assert.That(controller.State, Is.EqualTo(PlacementState.Placed));
-            Assert.That(planeManager.enabled, Is.False);
+            Assert.That(planeManager.enabled, Is.True);
+            Assert.That(
+                planeManager.requestedDetectionMode,
+                Is.EqualTo(PlaneDetectionMode.Horizontal | PlaneDetectionMode.Vertical));
             var anchorManager = Object.FindAnyObjectByType<ARAnchorManager>();
             Assert.That(anchorManager.trackables.count, Is.EqualTo(1));
 
