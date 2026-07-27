@@ -168,8 +168,11 @@ namespace CamoHuntAR
                     continue;
                 }
 
-                uv = hit.textureCoord;
-                return true;
+                return MeshUvUtility.TryGetTextureCoordinate(
+                    ((MeshCollider)hit.collider).sharedMesh,
+                    hit.triangleIndex,
+                    hit.barycentricCoordinate,
+                    out uv);
             }
 
             return false;

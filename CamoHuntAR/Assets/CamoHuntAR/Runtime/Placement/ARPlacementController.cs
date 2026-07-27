@@ -39,6 +39,12 @@ namespace CamoHuntAR
 
         private void Awake()
         {
+            if (planeManager != null)
+            {
+                planeManager.requestedDetectionMode =
+                    PlaneDetectionMode.Horizontal | PlaneDetectionMode.Vertical;
+            }
+
             _stateMachine.Changed += OnStateChanged;
             AttachButtonListeners();
 
