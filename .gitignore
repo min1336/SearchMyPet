@@ -24,3 +24,9 @@ artifacts/*
 
 # Generated presentation deliverables
 outputs/
+
+# Local planning notes kept outside the shared repository history
+AGENTS.md
+docs/mds/0.전반적인게임기획.md
+docs/mds/1.초기프로토타입_범위.md
+docs/mds/2.현재프로젝트_개선및개발계획.md
