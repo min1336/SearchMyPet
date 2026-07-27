@@ -8,8 +8,11 @@ namespace CamoHuntAR
     public sealed class CamouflagePaintUiController : MonoBehaviour
     {
         [SerializeField] private ARPlacementController placementController;
+        [SerializeField] private CharacterPaintEditorController editorController;
         [SerializeField] private GameObject toolsPanel;
         [SerializeField] private Button paintButton;
+        [SerializeField] private Button rotateButton;
+        [SerializeField] private Button finishButton;
         [SerializeField] private Button characterEyedropperButton;
         [SerializeField] private Button realityEyedropperButton;
         [SerializeField] private Slider hueSlider;
@@ -25,6 +28,8 @@ namespace CamoHuntAR
         private void Awake()
         {
             paintButton.onClick.AddListener(() => SetMode(CamouflagePaintMode.Paint));
+            rotateButton.onClick.AddListener(() => SetRotation(true));
+            finishButton.onClick.AddListener(FinishEditing);
             characterEyedropperButton.onClick.AddListener(() => SetMode(CamouflagePaintMode.SampleCharacter));
             realityEyedropperButton.onClick.AddListener(() => SetMode(CamouflagePaintMode.SampleReality));
             hueSlider.onValueChanged.AddListener(_ => ApplyHsv());
@@ -58,6 +63,7 @@ namespace CamoHuntAR
         {
             target = controller;
             toolsPanel.SetActive(target != null);
+            realityEyedropperButton.gameObject.SetActive(false);
             if (palette != null)
                 ApplyHsv(palette.Hue, palette.Saturation, palette.Value);
             else
@@ -73,14 +79,32 @@ namespace CamoHuntAR
 
         private void SetMode(CamouflagePaintMode mode)
         {
+            editorController?.SetRotationEnabled(false);
             target?.SetMode(mode);
             UpdateModeVisual(mode);
+        }
+
+        private void SetRotation(bool enabled)
+        {
+            editorController?.SetRotationEnabled(enabled);
+            if (enabled && modeLabel != null)
+                modeLabel.text = "DRAG TO ROTATE CHARACTER";
+            SetButtonState(rotateButton, enabled);
+            SetButtonState(paintButton, !enabled && target?.Mode == CamouflagePaintMode.Paint);
+        }
+
+        private void FinishEditing()
+        {
+            editorController?.FinishEditing();
+            if (toolsPanel != null)
+                toolsPanel.SetActive(false);
         }
 
         private void UpdateModeVisual(CamouflagePaintMode mode)
         {
             displayedMode = mode;
             SetButtonState(paintButton, mode == CamouflagePaintMode.Paint);
+            SetButtonState(rotateButton, false);
             SetButtonState(characterEyedropperButton, mode == CamouflagePaintMode.SampleCharacter);
             SetButtonState(realityEyedropperButton, mode == CamouflagePaintMode.SampleReality);
             if (modeLabel != null)
@@ -95,6 +119,8 @@ namespace CamoHuntAR
 
         private static void SetButtonState(Button button, bool selected)
         {
+            if (button == null)
+                return;
             var colors = button.colors;
             colors.normalColor = selected
                 ? new Color(0.18f, 0.90f, 0.72f, 1f)

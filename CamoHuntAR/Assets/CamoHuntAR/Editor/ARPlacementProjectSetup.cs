@@ -436,6 +436,7 @@ namespace CamoHuntAR.Editor
             var placementObject = new GameObject("ARPlacementController");
             placementObject.transform.SetParent(app.transform, false);
             var placementController = placementObject.AddComponent<ARPlacementController>();
+            var paintEditorController = placementObject.AddComponent<CharacterPaintEditorController>();
             var trackingObject = new GameObject("ARTrackingStatusController");
             trackingObject.transform.SetParent(app.transform, false);
             var trackingController = trackingObject.AddComponent<ARTrackingStatusController>();
@@ -465,7 +466,11 @@ namespace CamoHuntAR.Editor
             resetRect.anchoredPosition = new Vector2(-40f, -250f);
             resetRect.sizeDelta = new Vector2(300f, 88f);
 
-            var paintUi = CreateCamouflageTools(safeArea.transform, font, placementController);
+            var paintUi = CreateCamouflageTools(
+                safeArea.transform,
+                font,
+                placementController,
+                paintEditorController);
 
             var fontBinder = canvas.gameObject.AddComponent<RuntimeFontBinder>();
             SetObjectReferences(fontBinder, "targets", new[]
@@ -483,6 +488,8 @@ namespace CamoHuntAR.Editor
             SetObjectReference(placementController, "characterPrefab", characterPrefab);
             SetObjectReference(placementController, "confirmButton", confirmButton);
             SetObjectReference(placementController, "resetButton", resetButton);
+            SetObjectReference(paintEditorController, "placementController", placementController);
+            SetObjectReference(paintEditorController, "arCamera", arCamera);
             SetObjectReference(trackingController, "planeManager", planeManager);
             SetObjectReference(trackingController, "placementController", placementController);
             SetObjectReference(trackingController, "statusText", statusText);
@@ -498,7 +505,11 @@ namespace CamoHuntAR.Editor
             ValidateScene(scene);
         }
 
-        private static CamouflagePaintUiController CreateCamouflageTools(Transform parent, Font font, ARPlacementController placementController)
+        private static CamouflagePaintUiController CreateCamouflageTools(
+            Transform parent,
+            Font font,
+            ARPlacementController placementController,
+            CharacterPaintEditorController paintEditorController)
         {
             var panel = new GameObject("CamouflageTools", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             panel.transform.SetParent(parent, false);
@@ -511,7 +522,7 @@ namespace CamoHuntAR.Editor
 
             CreateUiText(panel.transform, "Title", "CAMOUFLAGE LAB", new Vector2(-220f, 236f),
                 new Vector2(380f, 46f), 30, font, TextAnchor.MiddleLeft, new Color(0.88f, 1f, 0.96f, 1f));
-            CreateUiText(panel.transform, "Subtitle", "Pick a color, then draw directly on the character.", new Vector2(-75f, 197f),
+            CreateUiText(panel.transform, "Subtitle", "Paint in the studio view, then rotate to reach every surface.", new Vector2(-75f, 197f),
                 new Vector2(670f, 30f), 18, font, TextAnchor.MiddleLeft, new Color(0.60f, 0.76f, 0.78f, 1f));
             var modeLabel = CreateUiText(panel.transform, "ModeLabel", "DRAW ON CHARACTER", new Vector2(242f, 155f),
                 new Vector2(320f, 32f), 18, font, TextAnchor.MiddleCenter, new Color(0.31f, 1f, 0.79f, 1f));
@@ -533,15 +544,20 @@ namespace CamoHuntAR.Editor
                 new Vector2(290f, 42f), 17, font, TextAnchor.MiddleCenter, Color.white);
 
             var paint = CreateToolButton(panel.transform, "PaintButton", "DRAW", new Vector2(242f, 84f), font);
-            var character = CreateToolButton(panel.transform, "CharacterEyedropperButton", "PICK FROM CHARACTER", new Vector2(242f, -18f), font);
-            var reality = CreateToolButton(panel.transform, "RealityEyedropperButton", "PICK FROM CAMERA", new Vector2(242f, -120f), font);
+            var rotate = CreateToolButton(panel.transform, "RotateButton", "ROTATE", new Vector2(242f, -18f), font);
+            var character = CreateToolButton(panel.transform, "CharacterEyedropperButton", "PICK FROM CHARACTER", new Vector2(242f, -120f), font);
+            var reality = CreateToolButton(panel.transform, "RealityEyedropperButton", "PICK FROM CAMERA", new Vector2(242f, -222f), font);
+            var finish = CreateToolButton(panel.transform, "FinishButton", "RETURN TO AR", new Vector2(242f, -324f), font);
 
             // The bridge must remain active while its visual panel is hidden so
             // it can receive the placement-complete event.
             var controller = parent.gameObject.AddComponent<CamouflagePaintUiController>();
             SetObjectReference(controller, "placementController", placementController);
+            SetObjectReference(controller, "editorController", paintEditorController);
             SetObjectReference(controller, "toolsPanel", panel);
             SetObjectReference(controller, "paintButton", paint);
+            SetObjectReference(controller, "rotateButton", rotate);
+            SetObjectReference(controller, "finishButton", finish);
             SetObjectReference(controller, "characterEyedropperButton", character);
             SetObjectReference(controller, "realityEyedropperButton", reality);
             SetObjectReference(controller, "hueSlider", hue);
@@ -627,8 +643,14 @@ namespace CamoHuntAR.Editor
                 Object.DestroyImmediate(existingBridge);
 
             var placement = FindSingleComponent<ARPlacementController>(scene);
+            var paintEditor = placement.GetComponent<CharacterPaintEditorController>();
+            if (paintEditor == null)
+                paintEditor = placement.gameObject.AddComponent<CharacterPaintEditorController>();
+            var xrOrigin = FindSingleComponent<XROrigin>(scene);
+            SetObjectReference(paintEditor, "placementController", placement);
+            SetObjectReference(paintEditor, "arCamera", xrOrigin.Camera);
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            CreateCamouflageTools(safeArea, font, placement);
+            CreateCamouflageTools(safeArea, font, placement, paintEditor);
         }
 
         private static Button CreateToolButton(Transform parent, string name, string label, Vector2 position, Font font)
@@ -813,6 +835,7 @@ namespace CamoHuntAR.Editor
             FindSingleComponent<ARRaycastManager>(scene);
             FindSingleComponent<ARAnchorManager>(scene);
             var placementController = FindSingleComponent<ARPlacementController>(scene);
+            var paintEditorController = FindSingleComponent<CharacterPaintEditorController>(scene);
             var trackingController = FindSingleComponent<ARTrackingStatusController>(scene);
             FindSingleComponent<EventSystem>(scene);
             FindSingleComponent<InputSystemUIInputModule>(scene);
@@ -833,6 +856,8 @@ namespace CamoHuntAR.Editor
             RequireObjectReference(placementController, "characterPrefab");
             RequireObjectReference(placementController, "confirmButton");
             RequireObjectReference(placementController, "resetButton");
+            RequireObjectReference(paintEditorController, "placementController");
+            RequireObjectReference(paintEditorController, "arCamera");
             RequireObjectReference(trackingController, "planeManager");
             RequireObjectReference(trackingController, "placementController");
             RequireObjectReference(trackingController, "statusText");

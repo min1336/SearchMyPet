@@ -14,6 +14,7 @@ namespace CamoHuntAR
 
         private readonly CamouflagePaintSession session = new CamouflagePaintSession();
         private int activePointerId = -1;
+        private bool inputEnabled = true;
 
         public Color32 SelectedColor => session.Picker.SelectedColor;
         public CamouflagePaintMode Mode => session.Mode;
@@ -33,6 +34,9 @@ namespace CamoHuntAR
                     session.CancelStroke();
                 return;
             }
+
+            if (!inputEnabled)
+                return;
 
             if (!PointerContactReader.TryRead(out var contact))
                 return;
@@ -73,6 +77,18 @@ namespace CamoHuntAR
         }
 
         public void SetMode(CamouflagePaintMode mode) => session.SetMode(mode);
+
+        public void SetInputEnabled(bool enabled)
+        {
+            inputEnabled = enabled;
+            if (!enabled && session.IsPainting)
+            {
+                session.CancelStroke();
+                activePointerId = -1;
+            }
+        }
+
+        public void SetPaintCamera(Camera sourceCamera) => paintCamera = sourceCamera;
 
         public bool TryUndo()
         {
