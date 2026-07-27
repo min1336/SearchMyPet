@@ -58,6 +58,32 @@ namespace CamoHuntAR.Tests
         }
 
         [Test]
+        public void TexturePainterUsesCanvasColorWithoutPrototypeMaterialTint()
+        {
+            var renderer = _root.GetComponent<Renderer>();
+            _sourceMaterial.color = new Color(0.12f, 0.68f, 0.52f, 1f);
+            var painter = _root.AddComponent<CamouflageTexturePainter>();
+            painter.ConfigureForPrefab(renderer, 0, 32);
+
+            Assert.That(painter.InitializeCanvas(Color.white), Is.True);
+            Assert.That(renderer.sharedMaterial.color, Is.EqualTo(Color.white));
+        }
+
+        [Test]
+        public void TexturePainterInterpolatesBetweenUvPoints()
+        {
+            var painter = _root.AddComponent<CamouflageTexturePainter>();
+            painter.ConfigureForPrefab(_root.GetComponent<Renderer>(), 0, 64);
+            painter.InitializeCanvas(Color.white);
+            var color = new Color32(30, 160, 80, 255);
+
+            Assert.That(painter.PaintLine(new Vector2(0.2f, 0.5f), new Vector2(0.8f, 0.5f), color, 0.03f), Is.True);
+            Assert.That(painter.TrySampleUv(new Vector2(0.5f, 0.5f), out var middle), Is.True);
+            Assert.That(middle.g, Is.GreaterThan(150));
+            Assert.That(middle.r, Is.LessThan(80));
+        }
+
+        [Test]
         public void HsvPickerAndCanvasEyedropperSetTheSelectedColor()
         {
             var picker = new CamouflageColorPickerState();

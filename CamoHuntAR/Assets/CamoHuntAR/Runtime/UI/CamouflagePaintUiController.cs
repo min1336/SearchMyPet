@@ -88,7 +88,7 @@ namespace CamoHuntAR
         {
             editorController?.SetRotationEnabled(enabled);
             if (enabled && modeLabel != null)
-                modeLabel.text = "DRAG TO ROTATE CHARACTER";
+                modeLabel.text = "드래그해서 캐릭터 돌리기";
             SetButtonState(rotateButton, enabled);
             SetButtonState(paintButton, !enabled && target?.Mode == CamouflagePaintMode.Paint);
         }
@@ -110,9 +110,9 @@ namespace CamoHuntAR
             if (modeLabel != null)
                 modeLabel.text = mode switch
                 {
-                    CamouflagePaintMode.Paint => "DRAW ON CHARACTER",
-                    CamouflagePaintMode.SampleCharacter => "TAP CHARACTER COLOR",
-                    CamouflagePaintMode.SampleReality => "TAP CAMERA COLOR",
+                    CamouflagePaintMode.Paint => "캐릭터에 색칠하기",
+                    CamouflagePaintMode.SampleCharacter => "캐릭터 색상을 탭하세요",
+                    CamouflagePaintMode.SampleReality => "배경 색상을 탭하세요",
                     _ => string.Empty,
                 };
         }

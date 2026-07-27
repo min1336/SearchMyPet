@@ -136,7 +136,7 @@ MonoBehaviour:
   paintCamera: {fileID: 0}
   texturePainter: {fileID: 0}
   cameraSampler: {fileID: 0}
-  brushRadius: 0.008
+  brushRadius: 0.018
 --- !u!1001 &8266014063655002173
 PrefabInstance:
   m_ObjectHideFlags: 0

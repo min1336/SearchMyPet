@@ -10,11 +10,13 @@ namespace CamoHuntAR
         [SerializeField] private Camera paintCamera;
         [SerializeField] private CamouflageTexturePainter texturePainter;
         [SerializeField] private CameraFrameColorSampler cameraSampler;
-        [SerializeField, Min(0.001f)] private float brushRadius = 0.008f;
+        [SerializeField, Min(0.001f)] private float brushRadius = 0.018f;
 
         private readonly CamouflagePaintSession session = new CamouflagePaintSession();
         private int activePointerId = -1;
         private bool inputEnabled = true;
+        private bool paintCanvasPrepared;
+        private Vector2 lastPaintUv;
 
         public Color32 SelectedColor => session.Picker.SelectedColor;
         public CamouflagePaintMode Mode => session.Mode;
@@ -90,6 +92,14 @@ namespace CamoHuntAR
 
         public void SetPaintCamera(Camera sourceCamera) => paintCamera = sourceCamera;
 
+        public void PrepareForPainting()
+        {
+            if (paintCanvasPrepared || texturePainter == null)
+                return;
+
+            paintCanvasPrepared = texturePainter.InitializeCanvas(new Color32(255, 255, 255, 255));
+        }
+
         public bool TryUndo()
         {
             if (!session.TryUndo(out var restored))
@@ -146,6 +156,7 @@ namespace CamoHuntAR
                 if (TryGetCharacterUv(contact.Position, out var uv) && session.BeginStroke(uv, brushRadius))
                 {
                     activePointerId = contact.PointerId;
+                    lastPaintUv = uv;
                     texturePainter.PaintAtUv(uv, session.Picker.SelectedColor, brushRadius);
                 }
                 return;
@@ -156,7 +167,10 @@ namespace CamoHuntAR
             if (contact.Phase == PointerContactPhase.Moved && TryGetCharacterUv(contact.Position, out var movedUv))
             {
                 if (session.AppendStroke(movedUv))
-                    texturePainter.PaintAtUv(movedUv, session.Picker.SelectedColor, brushRadius);
+                {
+                    texturePainter.PaintLine(lastPaintUv, movedUv, session.Picker.SelectedColor, brushRadius);
+                    lastPaintUv = movedUv;
+                }
                 return;
             }
 

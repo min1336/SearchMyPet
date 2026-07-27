@@ -37,6 +37,10 @@ namespace CamoHuntAR
 
             DisposeRuntimeResources();
             runtimeMaterial = new Material(sourceMaterials[materialIndex]);
+            // The paint canvas carries the selected camouflage color. Keeping
+            // the prototype material's teal tint would multiply and distort it.
+            if (runtimeMaterial.HasProperty("_Color"))
+                runtimeMaterial.color = Color.white;
             canvas = new Texture2D(textureResolution, textureResolution, TextureFormat.RGBA32, false)
             {
                 name = "RuntimeCamouflageCanvas",
@@ -61,28 +65,50 @@ namespace CamoHuntAR
             if (canvas == null || !IsValidUv(uv) || radius <= 0f)
                 return false;
 
+            PaintStamp(uv, color, radius);
+            canvas.Apply(false, false);
+            return true;
+        }
+
+        public bool PaintLine(Vector2 from, Vector2 to, Color32 color, float radius)
+        {
+            if (canvas == null || !IsValidUv(from) || !IsValidUv(to) || radius <= 0f)
+                return false;
+
+            var spacing = Mathf.Max(radius * 0.35f, 1f / textureResolution);
+            var steps = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(from, to) / spacing));
+            for (var index = 0; index <= steps; index++)
+                PaintStamp(Vector2.Lerp(from, to, index / (float)steps), color, radius);
+            canvas.Apply(false, false);
+            return true;
+        }
+
+        private void PaintStamp(Vector2 uv, Color32 color, float radius)
+        {
             var centerX = Mathf.RoundToInt(uv.x * (textureResolution - 1));
             var centerY = Mathf.RoundToInt(uv.y * (textureResolution - 1));
             var pixelRadius = Mathf.Max(1, Mathf.CeilToInt(radius * textureResolution));
-            var radiusSquared = pixelRadius * pixelRadius;
 
             for (var y = -pixelRadius; y <= pixelRadius; y++)
             {
                 for (var x = -pixelRadius; x <= pixelRadius; x++)
                 {
-                    if (x * x + y * y > radiusSquared)
+                    var distance = Mathf.Sqrt(x * x + y * y) / pixelRadius;
+                    if (distance > 1f)
                         continue;
 
                     var pixelX = centerX + x;
                     var pixelY = centerY + y;
                     if (pixelX < 0 || pixelX >= textureResolution || pixelY < 0 || pixelY >= textureResolution)
                         continue;
-                    canvas.SetPixel(pixelX, pixelY, color);
+                    var opacity = Mathf.SmoothStep(
+                        0f,
+                        1f,
+                        Mathf.Clamp01((1f - distance) / 0.72f));
+                    var existing = canvas.GetPixel(pixelX, pixelY);
+                    canvas.SetPixel(pixelX, pixelY, Color.Lerp(existing, (Color)color, opacity));
                 }
             }
-
-            canvas.Apply(false, false);
-            return true;
         }
 
         public bool TrySampleUv(Vector2 uv, out Color32 color)
@@ -104,8 +130,14 @@ namespace CamoHuntAR
 
             foreach (var stroke in data.Strokes)
             {
-                foreach (var point in stroke.Points)
-                    PaintAtUv(point, stroke.Color, stroke.Radius);
+                var points = stroke.Points;
+                for (var index = 0; index < points.Count; index++)
+                {
+                    if (index == 0)
+                        PaintAtUv(points[index], stroke.Color, stroke.Radius);
+                    else
+                        PaintLine(points[index - 1], points[index], stroke.Color, stroke.Radius);
+                }
             }
             return true;
         }

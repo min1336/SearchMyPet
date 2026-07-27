@@ -108,6 +108,7 @@ namespace CamoHuntAR
 
             RestoreArPresentation();
             target = controller;
+            target.PrepareForPainting();
             originalParent = target.transform.parent;
             originalLocalPosition = target.transform.localPosition;
             originalLocalRotation = target.transform.localRotation;

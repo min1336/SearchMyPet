@@ -68,7 +68,7 @@ namespace CamoHuntAR.Editor
                 transparent: true);
             var placedMaterial = CreateOrUpdateMaterial(
                 PlacedMaterialPath,
-                new Color(0.12f, 0.68f, 0.52f, 1f),
+                Color.white,
                 transparent: false);
             var planeMaterial = CreateOrUpdateMaterial(
                 PlaneMaterialPath,
@@ -524,38 +524,38 @@ namespace CamoHuntAR.Editor
             var panelRect = panel.GetComponent<RectTransform>();
             panelRect.anchorMin = panelRect.anchorMax = new Vector2(0.5f, 0f);
             panelRect.pivot = new Vector2(0.5f, 0f);
-            panelRect.anchoredPosition = new Vector2(0f, 96f);
-            panelRect.sizeDelta = new Vector2(940f, 620f);
-            panel.GetComponent<Image>().color = new Color(0.018f, 0.055f, 0.071f, 0.94f);
+            panelRect.anchoredPosition = new Vector2(0f, 28f);
+            panelRect.sizeDelta = new Vector2(1090f, 548f);
+            panel.GetComponent<Image>().color = new Color(0.018f, 0.055f, 0.071f, 0.97f);
 
-            CreateUiText(panel.transform, "Title", "CAMOUFLAGE LAB", new Vector2(-220f, 236f),
-                new Vector2(380f, 46f), 30, font, TextAnchor.MiddleLeft, new Color(0.88f, 1f, 0.96f, 1f));
-            CreateUiText(panel.transform, "Subtitle", "Paint in the studio view, then rotate to reach every surface.", new Vector2(-75f, 197f),
-                new Vector2(670f, 30f), 18, font, TextAnchor.MiddleLeft, new Color(0.60f, 0.76f, 0.78f, 1f));
-            var modeLabel = CreateUiText(panel.transform, "ModeLabel", "DRAW ON CHARACTER", new Vector2(242f, 155f),
-                new Vector2(320f, 32f), 18, font, TextAnchor.MiddleCenter, new Color(0.31f, 1f, 0.79f, 1f));
+            CreateUiText(panel.transform, "Title", "위장 페인팅", new Vector2(-300f, 226f),
+                new Vector2(440f, 50f), 34, font, TextAnchor.MiddleLeft, new Color(0.88f, 1f, 0.96f, 1f));
+            CreateUiText(panel.transform, "Subtitle", "배경은 고정됩니다. 캐릭터를 돌려가며 칠하세요.", new Vector2(-175f, 180f),
+                new Vector2(720f, 34f), 20, font, TextAnchor.MiddleLeft, new Color(0.60f, 0.76f, 0.78f, 1f));
+            var modeLabel = CreateUiText(panel.transform, "ModeLabel", "캐릭터에 색칠하기", new Vector2(282f, 152f),
+                new Vector2(430f, 36f), 20, font, TextAnchor.MiddleCenter, new Color(0.31f, 1f, 0.79f, 1f));
 
-            var hue = CreateToolSlider(panel.transform, "Hue", new Vector2(-220f, -174f), Color.red);
+            var hue = CreateToolSlider(panel.transform, "Hue", new Vector2(-290f, -174f), Color.red);
             var saturation = CreateToolSlider(panel.transform, "Saturation", new Vector2(-250f, 25f), Color.white);
             var value = CreateToolSlider(panel.transform, "Value", new Vector2(-250f, -50f), Color.white);
             saturation.gameObject.SetActive(false);
             value.gameObject.SetActive(false);
-            var palette = CreateHsvPalette(panel.transform, new Vector2(-220f, 8f), hue, font);
+            var palette = CreateHsvPalette(panel.transform, new Vector2(-290f, -8f), hue, font);
             var preview = new GameObject("SelectedColor", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             preview.transform.SetParent(panel.transform, false);
             var previewRect = preview.GetComponent<RectTransform>();
-            previewRect.anchoredPosition = new Vector2(242f, -205f);
-            previewRect.sizeDelta = new Vector2(330f, 88f);
+            previewRect.anchoredPosition = new Vector2(280f, -48f);
+            previewRect.sizeDelta = new Vector2(430f, 78f);
             var previewImage = preview.GetComponent<Image>();
             previewImage.color = Color.black;
             CreateUiText(preview.transform, "Label", "SELECTED COLOR", Vector2.zero,
                 new Vector2(290f, 42f), 17, font, TextAnchor.MiddleCenter, Color.white);
 
-            var paint = CreateToolButton(panel.transform, "PaintButton", "DRAW", new Vector2(242f, 84f), font);
-            var rotate = CreateToolButton(panel.transform, "RotateButton", "ROTATE", new Vector2(242f, -18f), font);
-            var character = CreateToolButton(panel.transform, "CharacterEyedropperButton", "PICK FROM CHARACTER", new Vector2(242f, -120f), font);
-            var reality = CreateToolButton(panel.transform, "RealityEyedropperButton", "PICK FROM CAMERA", new Vector2(242f, -222f), font);
-            var finish = CreateToolButton(panel.transform, "FinishButton", "RETURN TO AR", new Vector2(242f, -324f), font);
+            var paint = CreateToolButton(panel.transform, "PaintButton", "색칠", new Vector2(165f, 76f), font, 210f);
+            var rotate = CreateToolButton(panel.transform, "RotateButton", "회전", new Vector2(395f, 76f), font, 210f);
+            var character = CreateToolButton(panel.transform, "CharacterEyedropperButton", "색상 추출", new Vector2(280f, -138f), font, 430f);
+            var reality = CreateToolButton(panel.transform, "RealityEyedropperButton", "카메라 색상", new Vector2(280f, -230f), font, 430f);
+            var finish = CreateToolButton(panel.transform, "FinishButton", "완료 · AR로 돌아가기", new Vector2(280f, -244f), font, 430f);
 
             // The bridge must remain active while its visual panel is hidden so
             // it can receive the placement-complete event.
@@ -662,14 +662,20 @@ namespace CamoHuntAR.Editor
             CreateCamouflageTools(safeArea, font, placement, paintEditor);
         }
 
-        private static Button CreateToolButton(Transform parent, string name, string label, Vector2 position, Font font)
+        private static Button CreateToolButton(
+            Transform parent,
+            string name,
+            string label,
+            Vector2 position,
+            Font font,
+            float width = 330f)
         {
             var button = CreateButton(parent, name, label, new Color(0.10f, 0.22f, 0.27f, 0.96f), font);
             var rect = button.GetComponent<RectTransform>();
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(330f, 88f);
-            button.GetComponentInChildren<Text>(true).fontSize = 24;
+            rect.sizeDelta = new Vector2(width, 78f);
+            button.GetComponentInChildren<Text>(true).fontSize = 23;
             return button;
         }
 
