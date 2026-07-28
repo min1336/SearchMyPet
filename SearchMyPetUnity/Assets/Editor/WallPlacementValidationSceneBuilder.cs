@@ -5,7 +5,9 @@ using UnityEditor.SceneManagement;
 using UnityEditor.XR.Management;
 using UnityEditor.XR.Management.Metadata;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.InputSystem.XR;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -108,6 +110,9 @@ namespace SearchMyPet.Editor
             EditorUtility.SetDirty(generalSettings);
 
             var managerSettings = settingsPerBuildTarget.ManagerSettingsForBuildTarget(buildTargetGroup);
+            managerSettings.automaticLoading = true;
+            managerSettings.automaticRunning = true;
+            EditorUtility.SetDirty(managerSettings);
             if (!XRPackageMetadataStore.AssignLoader(managerSettings, loaderTypeName, buildTargetGroup))
             {
                 throw new System.InvalidOperationException(
@@ -150,6 +155,10 @@ namespace SearchMyPet.Editor
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvasObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             canvasObject.AddComponent<GraphicRaycaster>();
+
+            var eventSystemObject = new GameObject("Event System");
+            eventSystemObject.AddComponent<EventSystem>();
+            eventSystemObject.AddComponent<InputSystemUIInputModule>();
 
             var panelObject = new GameObject("Status Panel");
             panelObject.transform.SetParent(canvasObject.transform, false);

@@ -121,6 +121,14 @@ namespace SearchMyPet.AR
             }
 
             isRequestingCameraPermission = true;
+#if UNITY_EDITOR
+            yield return null;
+            isRequestingCameraPermission = false;
+            cameraPermissionDenied = false;
+            planeManager.enabled = true;
+            SetStatus("XR Simulation에서 벽면을 탐색 중", "Game 뷰를 클릭한 뒤 이동하며 수직 벽을 비춰 주세요.");
+            yield break;
+#else
             if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
             {
                 var permissionRequest = Application.RequestUserAuthorization(UserAuthorization.WebCam);
@@ -141,6 +149,7 @@ namespace SearchMyPet.AR
 
             planeManager.enabled = true;
             SetStatus("벽면을 탐색 중", "벽에서 1~2m 떨어져 천천히 비춰 주세요.");
+#endif
         }
 
         public void RetryCameraPermission()
