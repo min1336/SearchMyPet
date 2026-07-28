@@ -1,4 +1,3 @@
-using System.IO;
 using SearchMyPet.AR;
 using Unity.XR.CoreUtils;
 using UnityEditor;
@@ -14,15 +13,6 @@ namespace SearchMyPet.Editor
     public static class WallPlacementValidationSceneBuilder
     {
         private const string ScenePath = "Assets/Scenes/WallPlacementValidation.unity";
-
-        [InitializeOnLoadMethod]
-        private static void CreateMissingValidationSceneOnFirstImport()
-        {
-            if (!File.Exists(ScenePath))
-            {
-                EditorApplication.delayCall += Build;
-            }
-        }
 
         [MenuItem("Tools/Search My Pet/Build Wall Placement Validation Scene")]
         public static void Build()
