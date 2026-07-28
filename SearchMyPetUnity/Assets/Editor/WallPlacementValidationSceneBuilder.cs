@@ -70,6 +70,7 @@ namespace SearchMyPet.Editor
             const string settingsPath = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
             var settingsGuids = AssetDatabase.FindAssets("t:XRGeneralSettingsPerBuildTarget");
             XRGeneralSettingsPerBuildTarget settingsPerBuildTarget;
+            var settingsChanged = false;
 
             if (settingsGuids.Length > 0)
             {
@@ -80,44 +81,74 @@ namespace SearchMyPet.Editor
             {
                 settingsPerBuildTarget = ScriptableObject.CreateInstance<XRGeneralSettingsPerBuildTarget>();
                 AssetDatabase.CreateAsset(settingsPerBuildTarget, settingsPath);
+                settingsChanged = true;
             }
 
-            EditorBuildSettings.AddConfigObject(XRGeneralSettings.k_SettingsKey, settingsPerBuildTarget, true);
-            AssignLoader(
+            if (!EditorBuildSettings.TryGetConfigObject(
+                    XRGeneralSettings.k_SettingsKey,
+                    out XRGeneralSettingsPerBuildTarget configuredSettings)
+                || configuredSettings != settingsPerBuildTarget)
+            {
+                EditorBuildSettings.AddConfigObject(XRGeneralSettings.k_SettingsKey, settingsPerBuildTarget, true);
+                settingsChanged = true;
+            }
+
+            settingsChanged |= AssignLoader(
                 settingsPerBuildTarget,
                 BuildTargetGroup.Standalone,
                 "UnityEngine.XR.Simulation.SimulationLoader");
-            AssignLoader(
+            settingsChanged |= AssignLoader(
                 settingsPerBuildTarget,
                 BuildTargetGroup.iOS,
                 "UnityEngine.XR.ARKit.ARKitLoader");
-            EditorUtility.SetDirty(settingsPerBuildTarget);
-            AssetDatabase.SaveAssets();
+            if (settingsChanged)
+            {
+                EditorUtility.SetDirty(settingsPerBuildTarget);
+                AssetDatabase.SaveAssets();
+            }
         }
 
-        private static void AssignLoader(
+        private static bool AssignLoader(
             XRGeneralSettingsPerBuildTarget settingsPerBuildTarget,
             BuildTargetGroup buildTargetGroup,
             string loaderTypeName)
         {
+            var changed = false;
             if (!settingsPerBuildTarget.HasManagerSettingsForBuildTarget(buildTargetGroup))
             {
                 settingsPerBuildTarget.CreateDefaultManagerSettingsForBuildTarget(buildTargetGroup);
+                changed = true;
             }
 
             var generalSettings = settingsPerBuildTarget.SettingsForBuildTarget(buildTargetGroup);
-            generalSettings.InitManagerOnStart = true;
-            EditorUtility.SetDirty(generalSettings);
+            if (!generalSettings.InitManagerOnStart)
+            {
+                generalSettings.InitManagerOnStart = true;
+                EditorUtility.SetDirty(generalSettings);
+                changed = true;
+            }
 
             var managerSettings = settingsPerBuildTarget.ManagerSettingsForBuildTarget(buildTargetGroup);
-            managerSettings.automaticLoading = true;
-            managerSettings.automaticRunning = true;
-            EditorUtility.SetDirty(managerSettings);
-            if (!XRPackageMetadataStore.AssignLoader(managerSettings, loaderTypeName, buildTargetGroup))
+            if (!managerSettings.automaticLoading || !managerSettings.automaticRunning)
             {
-                throw new System.InvalidOperationException(
-                    $"Failed to assign XR loader '{loaderTypeName}' for {buildTargetGroup}.");
+                managerSettings.automaticLoading = true;
+                managerSettings.automaticRunning = true;
+                EditorUtility.SetDirty(managerSettings);
+                changed = true;
             }
+
+            if (!XRPackageMetadataStore.IsLoaderAssigned(loaderTypeName, buildTargetGroup))
+            {
+                if (!XRPackageMetadataStore.AssignLoader(managerSettings, loaderTypeName, buildTargetGroup))
+                {
+                    throw new System.InvalidOperationException(
+                        $"Failed to assign XR loader '{loaderTypeName}' for {buildTargetGroup}.");
+                }
+
+                changed = true;
+            }
+
+            return changed;
         }
 
         private static void ConfigureTrackedPoseDriver(TrackedPoseDriver trackedPoseDriver)

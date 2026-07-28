@@ -569,7 +569,8 @@ PlayerSettings:
   enableInternalProfiler: 0
   logObjCUncaughtExceptions: 1
   enableCrashReportAPI: 0
-  cameraUsageDescription: Search My Pet uses the camera to scan nearby walls and place your character in augmented reality.
+  cameraUsageDescription: Search My Pet uses the camera to scan nearby walls and
+    place your character in augmented reality.
   locationUsageDescription:
   microphoneUsageDescription:
   bluetoothUsageDescription:
@@ -829,7 +830,8 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 1
   webEnableSubmoduleStrippingCompatibility: 0
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    iPhone: UNITY_XR_ARKIT_LOADER_ENABLED
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
