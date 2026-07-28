@@ -58,17 +58,17 @@ namespace SearchMyPet.AR
         {
             if (planeManager == null)
             {
-                planeManager = FindFirstObjectByType<ARPlaneManager>();
+                planeManager = FindAnyObjectByType<ARPlaneManager>();
             }
 
             if (raycastManager == null)
             {
-                raycastManager = FindFirstObjectByType<ARRaycastManager>();
+                raycastManager = FindAnyObjectByType<ARRaycastManager>();
             }
 
             if (anchorManager == null)
             {
-                anchorManager = FindFirstObjectByType<ARAnchorManager>();
+                anchorManager = FindAnyObjectByType<ARAnchorManager>();
             }
 
             if (planeManager == null || raycastManager == null)
@@ -215,10 +215,10 @@ namespace SearchMyPet.AR
                 ConfigurePlaneVisual(plane);
             }
 
-            foreach (var plane in args.removed)
+            foreach (var removedPlane in args.removed)
             {
-                lastLoggedPlanes.Remove(plane.trackableId);
-                Debug.Log($"[WallPlaneDetection] removed id={plane.trackableId}");
+                lastLoggedPlanes.Remove(removedPlane.Key);
+                Debug.Log($"[WallPlaneDetection] removed id={removedPlane.Key}");
             }
 
             RefreshVerticalPlaneCount();
