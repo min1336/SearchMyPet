@@ -2,10 +2,15 @@ using SearchMyPet.AR;
 using Unity.XR.CoreUtils;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEditor.XR.Management;
+using UnityEditor.XR.Management.Metadata;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.Management;
 using UnityEngine.XR.ARSubsystems;
 
 namespace SearchMyPet.Editor
@@ -17,6 +22,8 @@ namespace SearchMyPet.Editor
         [MenuItem("Tools/Search My Pet/Build Wall Placement Validation Scene")]
         public static void Build()
         {
+            ConfigureXrLoaders();
+
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var session = new GameObject("AR Session");
@@ -29,13 +36,18 @@ namespace SearchMyPet.Editor
             var raycastManager = origin.AddComponent<ARRaycastManager>();
             var anchorManager = origin.AddComponent<ARAnchorManager>();
 
+            var cameraOffsetObject = new GameObject("Camera Offset");
+            cameraOffsetObject.transform.SetParent(origin.transform, false);
+            xrOrigin.CameraFloorOffsetObject = cameraOffsetObject;
+
             var cameraObject = new GameObject("AR Camera");
             cameraObject.tag = "MainCamera";
-            cameraObject.transform.SetParent(origin.transform, false);
+            cameraObject.transform.SetParent(cameraOffsetObject.transform, false);
             var camera = cameraObject.AddComponent<Camera>();
             camera.nearClipPlane = 0.1f;
             cameraObject.AddComponent<ARCameraManager>();
             cameraObject.AddComponent<ARCameraBackground>();
+            ConfigureTrackedPoseDriver(cameraObject.AddComponent<TrackedPoseDriver>());
             xrOrigin.Camera = camera;
 
             var controllerObject = new GameObject("Wall Plane Detection Controller");
@@ -49,6 +61,86 @@ namespace SearchMyPet.Editor
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("[WallPlaneDetection] Scene created and registered as Build Settings index 0: " + ScenePath);
+        }
+
+        private static void ConfigureXrLoaders()
+        {
+            const string settingsPath = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
+            var settingsGuids = AssetDatabase.FindAssets("t:XRGeneralSettingsPerBuildTarget");
+            XRGeneralSettingsPerBuildTarget settingsPerBuildTarget;
+
+            if (settingsGuids.Length > 0)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(settingsGuids[0]);
+                settingsPerBuildTarget = AssetDatabase.LoadAssetAtPath<XRGeneralSettingsPerBuildTarget>(path);
+            }
+            else
+            {
+                settingsPerBuildTarget = ScriptableObject.CreateInstance<XRGeneralSettingsPerBuildTarget>();
+                AssetDatabase.CreateAsset(settingsPerBuildTarget, settingsPath);
+            }
+
+            EditorBuildSettings.AddConfigObject(XRGeneralSettings.k_SettingsKey, settingsPerBuildTarget, true);
+            AssignLoader(
+                settingsPerBuildTarget,
+                BuildTargetGroup.Standalone,
+                "UnityEngine.XR.Simulation.SimulationLoader");
+            AssignLoader(
+                settingsPerBuildTarget,
+                BuildTargetGroup.iOS,
+                "UnityEngine.XR.ARKit.ARKitLoader");
+            EditorUtility.SetDirty(settingsPerBuildTarget);
+            AssetDatabase.SaveAssets();
+        }
+
+        private static void AssignLoader(
+            XRGeneralSettingsPerBuildTarget settingsPerBuildTarget,
+            BuildTargetGroup buildTargetGroup,
+            string loaderTypeName)
+        {
+            if (!settingsPerBuildTarget.HasManagerSettingsForBuildTarget(buildTargetGroup))
+            {
+                settingsPerBuildTarget.CreateDefaultManagerSettingsForBuildTarget(buildTargetGroup);
+            }
+
+            var generalSettings = settingsPerBuildTarget.SettingsForBuildTarget(buildTargetGroup);
+            generalSettings.InitManagerOnStart = true;
+            EditorUtility.SetDirty(generalSettings);
+
+            var managerSettings = settingsPerBuildTarget.ManagerSettingsForBuildTarget(buildTargetGroup);
+            if (!XRPackageMetadataStore.AssignLoader(managerSettings, loaderTypeName, buildTargetGroup))
+            {
+                throw new System.InvalidOperationException(
+                    $"Failed to assign XR loader '{loaderTypeName}' for {buildTargetGroup}.");
+            }
+        }
+
+        private static void ConfigureTrackedPoseDriver(TrackedPoseDriver trackedPoseDriver)
+        {
+            trackedPoseDriver.trackingType = TrackedPoseDriver.TrackingType.RotationAndPosition;
+            trackedPoseDriver.updateType = TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
+            trackedPoseDriver.positionInput = CreateInputAction(
+                "Center Eye Position",
+                "Vector3",
+                "<XRHMD>/centerEyePosition");
+            trackedPoseDriver.rotationInput = CreateInputAction(
+                "Center Eye Rotation",
+                "Quaternion",
+                "<XRHMD>/centerEyeRotation");
+            trackedPoseDriver.trackingStateInput = CreateInputAction(
+                "Tracking State",
+                "Integer",
+                "<XRHMD>/trackingState");
+        }
+
+        private static InputActionProperty CreateInputAction(
+            string name,
+            string expectedControlType,
+            string binding)
+        {
+            var action = new InputAction(name, InputActionType.Value, binding);
+            action.expectedControlType = expectedControlType;
+            return new InputActionProperty(action);
         }
 
         private static (Text statusText, Text detailText, Button retryButton, Button settingsButton) CreateStatusCanvas()
