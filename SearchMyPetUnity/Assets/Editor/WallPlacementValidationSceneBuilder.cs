@@ -129,10 +129,12 @@ namespace SearchMyPet.Editor
             }
 
             var managerSettings = settingsPerBuildTarget.ManagerSettingsForBuildTarget(buildTargetGroup);
-            if (!managerSettings.automaticLoading || !managerSettings.automaticRunning)
+            // XRGeneralSettings owns initialization and shutdown in XR Management 4.4.
+            // Enabling these legacy flags can call StopSubsystems before initialization.
+            if (managerSettings.automaticLoading || managerSettings.automaticRunning)
             {
-                managerSettings.automaticLoading = true;
-                managerSettings.automaticRunning = true;
+                managerSettings.automaticLoading = false;
+                managerSettings.automaticRunning = false;
                 EditorUtility.SetDirty(managerSettings);
                 changed = true;
             }
