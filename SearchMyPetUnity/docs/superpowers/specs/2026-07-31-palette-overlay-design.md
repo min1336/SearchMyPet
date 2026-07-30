@@ -24,7 +24,7 @@ Keep the current camera controls visible while exposing character-paint tools ab
 - Reuse `Paint Quick Controls`, `Paint Toolbar`, and `Paint Tool Options` from `SearchMyPetAppUI.prefab`.
 - Change `CharacterColorPalette` so opening tools no longer hides `Paint Quick Controls`.
 - Reposition only the toolbar and settings panel; preserve the user's current camera-screen layout and styling.
-- Do not change map navigation, character painting logic, capture logic, or pose logic.
+- Do not change `AppTabController`, the map screen, character painting logic, capture logic, or pose logic.
 
 ## Verification
 
