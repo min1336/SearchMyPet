@@ -121,7 +121,6 @@ namespace SearchMyPet.AR
         {
             usesEditableUi = true;
             var safeArea = paintUi.transform.Find("Safe Area");
-            ApplySafeArea((RectTransform)safeArea);
             contextPanel = safeArea.Find("Paint Tool Options").gameObject;
             quickControls = safeArea.Find("Paint Quick Controls")?.gameObject;
             toolbar = safeArea.Find("Paint Toolbar")?.gameObject;

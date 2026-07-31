@@ -173,15 +173,15 @@ namespace SearchMyPet.AR.Tests
             var toolbar = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar");
             var toolOptions = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options");
             Assert.That(quickControls.anchoredPosition, Is.EqualTo(new Vector2(0f, 75f)));
-            Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 176.481f)));
-            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 257.581f)));
+            Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 205f)));
+            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 284f)));
             var safeAreaRect = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area");
             var captureButton = (RectTransform)quickControls.Find("Capture Button");
             GetVerticalBounds(captureButton, safeAreaRect, out _, out var quickTop);
             GetVerticalBounds(toolbar, safeAreaRect, out var toolbarBottom, out var toolbarTop);
             GetVerticalBounds(toolOptions, safeAreaRect, out var optionsBottom, out _);
             Assert.That(toolbarBottom - quickTop, Is.GreaterThanOrEqualTo(8f));
-            Assert.That(optionsBottom - toolbarTop, Is.EqualTo(6f).Within(0.01f));
+            Assert.That(optionsBottom - toolbarTop, Is.EqualTo(3.9f).Within(0.01f));
             var topScrim = prefab.transform.Find("Top Camera Scrim").GetComponent<Image>();
             var bottomScrim = prefab.transform.Find("Bottom Camera Scrim").GetComponent<Image>();
             Assert.That(topScrim.rectTransform.sizeDelta.y, Is.EqualTo(128f));
@@ -213,6 +213,9 @@ namespace SearchMyPet.AR.Tests
                 instance.name = "SearchMyPetAppUI";
                 var palette = controller.AddComponent<CharacterColorPalette>();
                 palette.Initialize(canvasObject.transform);
+                var safeAreaRect = (RectTransform)instance.transform.Find("Character Paint UI/Safe Area");
+                Assert.That(safeAreaRect.anchorMin, Is.EqualTo(Vector2.zero));
+                Assert.That(safeAreaRect.anchorMax, Is.EqualTo(Vector2.one));
                 var paintUi = instance.transform.Find("Character Paint UI");
                 Assert.That(paintUi.gameObject.activeInHierarchy, Is.True);
                 palette.SetCharacter(null);

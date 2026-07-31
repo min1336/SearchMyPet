@@ -551,16 +551,22 @@ namespace SearchMyPet.Tests.Editor
             Assert.That(reticle, Is.Not.Null);
             Assert.That(GameObject.Find("Wall Placement Reticle").GetComponent<UnityEngine.UI.Image>().enabled, Is.False);
             var statusCanvas = GameObject.Find("Status Canvas");
-            var placeAction = statusCanvas.transform.Find("Place Character Button").gameObject;
-            Assert.That(placeAction.activeSelf, Is.False);
-            Assert.That(placeAction.transform.GetSiblingIndex(), Is.EqualTo(placeAction.transform.parent.childCount - 1));
-            Assert.That(placeAction.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(64f, 64f)));
+            var placeAction = GameObject.Find("SearchMyPetAppUI").transform
+                .Find("Character Paint UI/Safe Area/Paint Quick Controls/Capture Button").gameObject;
+            Assert.That(statusCanvas.transform.Find("Place Character Button"), Is.Null);
+            Assert.That(placeAction.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(68f, 68f)));
             Assert.That(placeAction.GetComponent<UnityEngine.UI.Image>().sprite.name, Is.EqualTo("Knob"));
-            Assert.That(placeAction.transform.Find("Label").gameObject.activeSelf, Is.False);
             var whiteFill = placeAction.transform.Find("White Fill").GetComponent<UnityEngine.UI.Image>();
             Assert.That(whiteFill.color, Is.EqualTo(Color.white));
-            Assert.That(whiteFill.rectTransform.sizeDelta, Is.EqualTo(new Vector2(54f, 54f)));
+            Assert.That(whiteFill.rectTransform.sizeDelta, Is.EqualTo(new Vector2(58f, 58f)));
             Assert.That(placeAction.GetComponent<UnityEngine.UI.Button>().colors.disabledColor, Is.EqualTo(Color.white));
+            var controller = Object.FindFirstObjectByType<WallPlacementController>();
+            var controllerProperties = new SerializedObject(controller);
+            Assert.That(controllerProperties.FindProperty("placeButton").objectReferenceValue,
+                Is.SameAs(placeAction.GetComponent<UnityEngine.UI.Button>()));
+            Assert.That(placeAction.GetComponent<UnityEngine.UI.Button>().onClick.GetPersistentEventCount(), Is.EqualTo(1));
+            Assert.That(placeAction.GetComponent<UnityEngine.UI.Button>().onClick.GetPersistentMethodName(0),
+                Is.EqualTo(nameof(WallPlacementController.PlaceAtCandidate)));
             foreach (var lens in statusCanvas.transform.Find("Camera Lens Selector").GetComponentsInChildren<UnityEngine.UI.Button>(true))
             {
                 Assert.That(lens.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(30f, 30f)));
