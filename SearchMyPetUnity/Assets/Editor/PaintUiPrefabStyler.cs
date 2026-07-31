@@ -33,7 +33,7 @@ namespace SearchMyPet.Editor
                 var paletteIcon = AssetDatabase.LoadAssetAtPath<Sprite>(PaletteIconPath);
                 var font = root.GetComponentInChildren<Text>(true).font;
 
-                SetRect((RectTransform)toolbar, new Vector2(0f, 20f), new Vector2(358f, 76f));
+                SetRect((RectTransform)toolbar, new Vector2(0f, 104f), new Vector2(358f, 76f));
                 toolbar.GetComponent<Image>().color = new Color(0.02f, 0.025f, 0.03f, 0.96f);
                 StyleToolbar(toolbar, font);
                 toolbar.gameObject.SetActive(false);
@@ -41,7 +41,7 @@ namespace SearchMyPet.Editor
                 StyleBackButton(topBar, font, circle);
                 topBar.gameObject.SetActive(true);
 
-                SetRect((RectTransform)context, new Vector2(0f, 102f), new Vector2(358f, 110f));
+                SetRect((RectTransform)context, new Vector2(0f, 186f), new Vector2(358f, 110f));
                 context.GetComponent<Image>().color = Panel;
                 context.gameObject.SetActive(false);
                 foreach (Transform panel in context)
