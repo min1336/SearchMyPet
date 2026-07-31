@@ -1,12 +1,15 @@
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace SearchMyPet.AR.Tests
 {
     public sealed class CharacterColorPaletteTests
     {
+        private const string ScenePath = "Assets/Scenes/WallPlacementValidation.unity";
         [Test]
         public void Stamp_PaintsBrushAreaWithoutChangingDistantPixels()
         {
@@ -142,15 +145,13 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
-        public void EditableUiPrefab_ContainsTabsAndPaintControls()
+        public void SceneUi_IsUnpackedAndStacksPaintPanels()
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/SearchMyPetAppUI.prefab");
+            var prefab = GetSceneUi();
 
-            Assert.That(prefab, Is.Not.Null);
-            var prefabRect = prefab.GetComponent<RectTransform>();
-            Assert.That(prefabRect.sizeDelta, Is.EqualTo(new Vector2(390f, 844f)));
-            Assert.That(prefabRect.anchorMin, Is.EqualTo(new Vector2(0.5f, 0.5f)));
-            Assert.That(prefabRect.anchorMax, Is.EqualTo(new Vector2(0.5f, 0.5f)));
+            Assert.That(PrefabUtility.GetPrefabInstanceStatus(prefab), Is.EqualTo(PrefabInstanceStatus.NotAPrefab));
+            Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/SearchMyPetAppUI.prefab"), Is.Null);
+            Assert.That(AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Editor/PaintUiPrefabStyler.cs"), Is.Null);
             Assert.That(prefab.transform.Find("App Tab Bar"), Is.Null);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar/팔레트"), Is.Not.Null);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Palette Options/Hue"), Is.Not.Null);
@@ -169,9 +170,9 @@ namespace SearchMyPet.AR.Tests
             var quickControls = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls");
             var toolbar = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar");
             var toolOptions = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options");
-            Assert.That(quickControls.anchoredPosition, Is.EqualTo(new Vector2(0f, 20f)));
-            Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 104f)));
-            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 186f)));
+            Assert.That(quickControls.anchoredPosition, Is.EqualTo(new Vector2(0f, 75f)));
+            Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 159f)));
+            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 241f)));
             var topScrim = prefab.transform.Find("Top Camera Scrim").GetComponent<Image>();
             var bottomScrim = prefab.transform.Find("Bottom Camera Scrim").GetComponent<Image>();
             Assert.That(topScrim.rectTransform.sizeDelta.y, Is.EqualTo(128f));
@@ -186,9 +187,9 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
-        public void EditableUiPrefab_BindsWithoutCreatingDuplicateUi()
+        public void SceneUi_BindsWithoutCreatingDuplicateUi()
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/SearchMyPetAppUI.prefab");
+            var prefab = GetSceneUi();
             var canvasObject = new GameObject("Canvas", typeof(Canvas));
             var controller = new GameObject("Controller");
             try
@@ -250,6 +251,27 @@ namespace SearchMyPet.AR.Tests
             var renderer = part.GetComponent<Renderer>();
             renderer.sharedMaterial = material;
             return renderer;
+        }
+
+        private static GameObject GetSceneUi()
+        {
+            var scene = SceneManager.GetSceneByPath(ScenePath);
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            }
+
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                if (root.name == "SearchMyPetAppUI") return root;
+                foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+                {
+                    if (transform.name == "SearchMyPetAppUI") return transform.gameObject;
+                }
+            }
+
+            Assert.Fail("SearchMyPetAppUI not found");
+            return null;
         }
     }
 }
