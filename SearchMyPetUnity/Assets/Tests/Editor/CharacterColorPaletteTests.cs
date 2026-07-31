@@ -110,6 +110,12 @@ namespace SearchMyPet.AR.Tests
 
                 paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.True);
+                var safeArea = canvasObject.transform.Find("Character Paint UI/Safe Area");
+                safeArea.Find("Paint Toolbar/팔레트").GetComponent<Button>().onClick.Invoke();
+                Assert.That(((RectTransform)safeArea.Find("Paint Tool Options/Hue/Handle")).sizeDelta,
+                    Is.EqualTo(new Vector2(4f, 24f)));
+                safeArea.Find("Paint Toolbar/스포이드").GetComponent<Button>().onClick.Invoke();
+                Assert.That(safeArea.Find("Paint Tool Options").gameObject.activeSelf, Is.False);
                 paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.False);
             }
@@ -157,6 +163,14 @@ namespace SearchMyPet.AR.Tests
             Assert.That(prefab.transform.Find("App Tab Bar"), Is.Null);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar/팔레트"), Is.Not.Null);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Palette Options/Hue"), Is.Not.Null);
+            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Palette Options/Eyedropper Shortcut"), Is.Null);
+            foreach (var sliderName in new[] { "Hue", "Brightness" })
+            {
+                var handle = prefab.transform.Find($"Character Paint UI/Safe Area/Paint Tool Options/Palette Options/{sliderName}/Handle")
+                    .GetComponent<Image>();
+                Assert.That(handle.rectTransform.sizeDelta, Is.EqualTo(new Vector2(4f, 24f)));
+                Assert.That(handle.sprite, Is.Null);
+            }
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls/Color Palette Button/Selected Color"), Is.Not.Null);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls/Color Palette Button/Palette Icon").GetComponent<Image>().sprite, Is.EqualTo(AssetDatabase.LoadAssetAtPath<Sprite>("Assets/UI/ColorPalette.png")));
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls/Color Palette Button").GetComponent<CanvasRenderer>().cullTransparentMesh, Is.False);
@@ -253,6 +267,8 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(safeArea.Find("Paint Top Bar").gameObject.activeSelf, Is.True);
                 safeArea.Find("Paint Toolbar/팔레트").GetComponent<Button>().onClick.Invoke();
                 Assert.That(safeArea.Find("Paint Tool Options").gameObject.activeSelf, Is.True);
+                safeArea.Find("Paint Toolbar/스포이드").GetComponent<Button>().onClick.Invoke();
+                Assert.That(safeArea.Find("Paint Tool Options").gameObject.activeSelf, Is.False);
 
                 paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.False);

@@ -415,7 +415,7 @@ namespace SearchMyPet.AR
                 return;
             }
 
-            contextPanel.SetActive(ToolsOpen && tool != Tool.Brush);
+            contextPanel.SetActive(ToolsOpen && tool != Tool.Brush && tool != Tool.Eyedropper);
 
             if (usesEditableUi)
             {
@@ -623,7 +623,7 @@ namespace SearchMyPet.AR
             Stretch(backgroundImage.rectTransform);
 
             var handle = CreateImage(root.transform, "Handle", handleColor);
-            SetRect(handle.rectTransform, Vector2.zero, new Vector2(28f, 36f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            SetRect(handle.rectTransform, Vector2.zero, new Vector2(4f, 24f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             var slider = root.GetComponent<Slider>();
             slider.targetGraphic = handle;
             slider.handleRect = handle.rectTransform;
