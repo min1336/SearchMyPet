@@ -147,9 +147,10 @@ namespace SearchMyPet.AR.Tests
         [Test]
         public void SceneUi_IsUnpackedAndStacksPaintPanels()
         {
-            var prefab = GetSceneUi(out var openedScene);
+            var openedScene = default(Scene);
             try
             {
+            var prefab = GetSceneUi(out openedScene);
             Assert.That(PrefabUtility.GetPrefabInstanceStatus(prefab), Is.EqualTo(PrefabInstanceStatus.NotAPrefab));
             Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/SearchMyPetAppUI.prefab"), Is.Null);
             Assert.That(AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Editor/PaintUiPrefabStyler.cs"), Is.Null);
@@ -195,11 +196,12 @@ namespace SearchMyPet.AR.Tests
         [Test]
         public void SceneUi_BindsWithoutCreatingDuplicateUi()
         {
-            var prefab = GetSceneUi(out var openedScene);
+            var openedScene = default(Scene);
             var canvasObject = new GameObject("Canvas", typeof(Canvas));
             var controller = new GameObject("Controller");
             try
             {
+                var prefab = GetSceneUi(out openedScene);
                 var instance = Object.Instantiate(prefab, canvasObject.transform);
                 instance.name = "SearchMyPetAppUI";
                 var palette = controller.AddComponent<CharacterColorPalette>();
@@ -270,17 +272,26 @@ namespace SearchMyPet.AR.Tests
                 scene = openedScene;
             }
 
-            foreach (var root in scene.GetRootGameObjects())
+            try
             {
-                if (root.name == "SearchMyPetAppUI") return root;
-                foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+                foreach (var root in scene.GetRootGameObjects())
                 {
-                    if (transform.name == "SearchMyPetAppUI") return transform.gameObject;
+                    if (root.name == "SearchMyPetAppUI") return root;
+                    foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (transform.name == "SearchMyPetAppUI") return transform.gameObject;
+                    }
                 }
-            }
 
-            Assert.Fail("SearchMyPetAppUI not found");
-            return null;
+                Assert.Fail("SearchMyPetAppUI not found");
+                return null;
+            }
+            catch
+            {
+                CloseSceneIfOpened(openedScene);
+                openedScene = default;
+                throw;
+            }
         }
 
         private static void CloseSceneIfOpened(Scene scene)
