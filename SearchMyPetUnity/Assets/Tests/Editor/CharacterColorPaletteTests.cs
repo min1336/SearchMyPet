@@ -95,6 +95,29 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
+        public void FallbackUi_PaletteButtonTogglesToolMenu()
+        {
+            var paletteObject = new GameObject("Palette");
+            var canvasObject = new GameObject("Canvas", typeof(Canvas));
+            try
+            {
+                var palette = paletteObject.AddComponent<CharacterColorPalette>();
+                palette.Initialize(canvasObject.transform);
+                var paletteButton = canvasObject.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls/Color Palette Button").GetComponent<Button>();
+
+                paletteButton.onClick.Invoke();
+                Assert.That(palette.ToolsOpen, Is.True);
+                paletteButton.onClick.Invoke();
+                Assert.That(palette.ToolsOpen, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(paletteObject);
+                Object.DestroyImmediate(canvasObject);
+            }
+        }
+
+        [Test]
         public void AppTabs_StartOnCameraAndSwitchToMap()
         {
             var root = new GameObject("Tabs");

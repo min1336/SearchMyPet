@@ -510,7 +510,7 @@ namespace SearchMyPet.AR
         private void CreateQuickBar(Transform parent)
         {
             quickControls = CreatePanel(parent, "Paint Quick Controls", new Vector2(0f, 48f), new Vector2(720f, 84f));
-            var palette = CreateButton(quickControls.transform, "Color Palette Button", new Color(1f, 1f, 1f, 0.001f), Color.white, OpenToolMenu);
+            var palette = CreateButton(quickControls.transform, "Color Palette Button", new Color(1f, 1f, 1f, 0.001f), Color.white, ToggleToolMenu);
             palette.GetComponent<CanvasRenderer>().cullTransparentMesh = false;
             SetRect((RectTransform)palette.transform, new Vector2(24f, 12f), new Vector2(64f, 60f), Vector2.zero, Vector2.zero, Vector2.zero);
             var capture = CreateButton(quickControls.transform, "Capture Button", Card, Color.white, () => { });
