@@ -168,20 +168,22 @@ namespace SearchMyPet.AR.Tests
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar").gameObject.activeSelf, Is.False);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Top Bar").gameObject.activeSelf, Is.True);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options").gameObject.activeSelf, Is.False);
-            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Palette Options").gameObject.activeSelf, Is.True);
+            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Size Options").gameObject.activeSelf, Is.True);
             var quickControls = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls");
             var toolbar = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar");
             var toolOptions = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options");
             Assert.That(quickControls.anchoredPosition, Is.EqualTo(new Vector2(0f, 75f)));
             Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 205f)));
-            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 284f)));
+            Assert.That(toolbar.sizeDelta, Is.EqualTo(new Vector2(320f, 58f)));
+            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 267f)));
+            Assert.That(toolOptions.sizeDelta, Is.EqualTo(new Vector2(320f, 82f)));
             var safeAreaRect = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area");
             var captureButton = (RectTransform)quickControls.Find("Capture Button");
             GetVerticalBounds(captureButton, safeAreaRect, out _, out var quickTop);
             GetVerticalBounds(toolbar, safeAreaRect, out var toolbarBottom, out var toolbarTop);
             GetVerticalBounds(toolOptions, safeAreaRect, out var optionsBottom, out _);
             Assert.That(toolbarBottom - quickTop, Is.GreaterThanOrEqualTo(8f));
-            Assert.That(optionsBottom - toolbarTop, Is.EqualTo(3.9f).Within(0.01f));
+            Assert.That(optionsBottom - toolbarTop, Is.EqualTo(4f).Within(0.01f));
             var topScrim = prefab.transform.Find("Top Camera Scrim").GetComponent<Image>();
             var bottomScrim = prefab.transform.Find("Bottom Camera Scrim").GetComponent<Image>();
             Assert.That(topScrim.rectTransform.sizeDelta.y, Is.EqualTo(128f));
@@ -191,7 +193,18 @@ namespace SearchMyPet.AR.Tests
             {
                 Assert.That(tool.transform.Find("Icon"), Is.Not.Null);
                 Assert.That(tool.GetComponent<Outline>(), Is.Not.Null);
-                Assert.That(tool.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(65f, 56f)));
+                Assert.That(tool.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(56f, 46f)));
+                Assert.That(tool.GetComponentInChildren<Text>().fontSize, Is.EqualTo(9));
+            }
+            foreach (var size in prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Size Options").GetComponentsInChildren<Button>(true))
+            {
+                Assert.That(size.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(70f, 58f)));
+                Assert.That(size.GetComponentInChildren<Text>().fontSize, Is.EqualTo(16));
+            }
+            foreach (var texture in prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Texture Options").GetComponentsInChildren<Button>(true))
+            {
+                Assert.That(texture.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(96f, 58f)));
+                Assert.That(texture.GetComponentInChildren<Text>().fontSize, Is.EqualTo(14));
             }
             }
             finally
