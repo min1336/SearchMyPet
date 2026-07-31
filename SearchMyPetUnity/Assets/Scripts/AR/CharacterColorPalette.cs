@@ -276,14 +276,26 @@ namespace SearchMyPet.AR
             quickControls = safeArea?.Find("Paint Quick Controls")?.gameObject;
             var button = quickControls?.transform.Find("Color Palette Button")?.GetComponent<Button>();
             button?.onClick.RemoveListener(OpenToolMenu);
-            button?.onClick.AddListener(OpenToolMenu);
+            button?.onClick.RemoveListener(ToggleToolMenu);
+            button?.onClick.AddListener(ToggleToolMenu);
             quickColorSwatch = quickControls?.transform.Find("Color Palette Button/Selected Color")?.GetComponent<Image>();
+        }
+
+        public void ToggleToolMenu()
+        {
+            if (ToolsOpen)
+            {
+                CloseToolMenu();
+                return;
+            }
+
+            OpenToolMenu();
         }
 
         public void OpenToolMenu()
         {
             ToolsOpen = true;
-            quickControls?.SetActive(false);
+            quickControls?.SetActive(true);
             toolbar?.SetActive(true);
             topBar?.SetActive(true);
             ShowTool(Tool.Brush);
@@ -300,13 +312,8 @@ namespace SearchMyPet.AR
 
         public void NavigateBack()
         {
-            if (ToolsOpen)
-            {
-                CloseToolMenu();
-                return;
-            }
-
             IsPainting = false;
+            ToolsOpen = false;
             paintUi?.SetActive(false);
             SetCameraUiVisible(false);
             appTabs ??= FindAnyObjectByType<AppTabController>();

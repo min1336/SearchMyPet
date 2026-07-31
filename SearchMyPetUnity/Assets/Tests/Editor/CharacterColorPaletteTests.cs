@@ -176,24 +176,26 @@ namespace SearchMyPet.AR.Tests
                 tabs.Initialize(canvasObject.transform);
 
                 var safeArea = instance.transform.Find("Character Paint UI/Safe Area");
+                var paletteButton = safeArea.Find("Paint Quick Controls/Color Palette Button").GetComponent<Button>();
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
-                safeArea.Find("Paint Quick Controls/Color Palette Button").GetComponent<Button>().onClick.Invoke();
+                paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.True);
-                Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.False);
+                Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Toolbar").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Top Bar").gameObject.activeSelf, Is.True);
-                safeArea.Find("Paint Top Bar/완료").GetComponent<Button>().onClick.Invoke();
+
+                paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.False);
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
-                Assert.That(safeArea.Find("Paint Top Bar").gameObject.activeSelf, Is.True);
+                Assert.That(safeArea.Find("Paint Toolbar").gameObject.activeSelf, Is.False);
 
+                paletteButton.onClick.Invoke();
                 safeArea.Find("Paint Top Bar/완료").GetComponent<Button>().onClick.Invoke();
                 Assert.That(tabs.ActiveTab, Is.EqualTo(AppTab.Map));
                 Assert.That(instance.transform.Find("Map Fallback").gameObject.activeSelf, Is.True);
                 Assert.That(instance.transform.Find("Character Paint UI").gameObject.activeSelf, Is.False);
 
                 var character = new GameObject("Character");
-                var paletteButton = safeArea.Find("Paint Quick Controls/Color Palette Button").GetComponent<Button>();
                 paletteButton.onClick.RemoveAllListeners();
                 palette.SetCharacter(character);
                 paletteButton.onClick.Invoke();
