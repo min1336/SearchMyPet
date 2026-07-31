@@ -42,7 +42,7 @@ namespace SearchMyPet.AR
                 lensButtons = new[] { ultraWideButton, normalButton, doubleButton };
             }
 
-            SetSelectorVisible(false);
+            SetSelectorVisible(true);
         }
 
         private IEnumerator Start()
@@ -78,7 +78,6 @@ namespace SearchMyPet.AR
         {
             if (!TryGetNativeRange(out minimumZoom, out maximumZoom, out var currentZoom))
             {
-                SetSelectorVisible(false);
                 return false;
             }
 
@@ -86,7 +85,7 @@ namespace SearchMyPet.AR
             SetButtonAvailable(ultraWideButton, 0.5f);
             SetButtonAvailable(normalButton, 1f);
             SetButtonAvailable(doubleButton, 2f);
-            SetSelectorVisible(IsPresetAvailable(0.5f) || IsPresetAvailable(2f));
+            SetSelectorVisible(true);
             UpdateSelection(currentZoom);
             Debug.Log($"[ARCameraLens] available zoom range={minimumZoom:F2}x..{maximumZoom:F2}x current={currentZoom:F2}x");
             return true;
