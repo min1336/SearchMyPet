@@ -114,7 +114,7 @@ namespace SearchMyPet.AR
             }
             ShowTool(Tool.Brush);
             CloseToolMenu();
-            paintUi.SetActive(false);
+            paintUi.SetActive(true);
         }
 
         private void BindEditableUi()
@@ -219,7 +219,7 @@ namespace SearchMyPet.AR
                 }
             }
             IsPainting = character != null;
-            paintUi?.SetActive(IsPainting);
+            paintUi?.SetActive(true);
             SetCameraUiVisible(!IsPainting);
             if (character == null)
             {

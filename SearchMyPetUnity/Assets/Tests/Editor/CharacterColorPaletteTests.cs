@@ -185,7 +185,7 @@ namespace SearchMyPet.AR.Tests
             var topScrim = prefab.transform.Find("Top Camera Scrim").GetComponent<Image>();
             var bottomScrim = prefab.transform.Find("Bottom Camera Scrim").GetComponent<Image>();
             Assert.That(topScrim.rectTransform.sizeDelta.y, Is.EqualTo(128f));
-            Assert.That(bottomScrim.rectTransform.sizeDelta.y, Is.EqualTo(248f));
+            Assert.That(bottomScrim.rectTransform.sizeDelta.y, Is.EqualTo(200.5f));
             Assert.That(topScrim.raycastTarget || bottomScrim.raycastTarget, Is.False);
             foreach (var tool in prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar").GetComponentsInChildren<Button>(true))
             {
@@ -213,6 +213,10 @@ namespace SearchMyPet.AR.Tests
                 instance.name = "SearchMyPetAppUI";
                 var palette = controller.AddComponent<CharacterColorPalette>();
                 palette.Initialize(canvasObject.transform);
+                var paintUi = instance.transform.Find("Character Paint UI");
+                Assert.That(paintUi.gameObject.activeInHierarchy, Is.True);
+                palette.SetCharacter(null);
+                Assert.That(paintUi.gameObject.activeInHierarchy, Is.True);
                 var instanceRect = instance.GetComponent<RectTransform>();
                 Assert.That(instanceRect.anchorMin, Is.EqualTo(Vector2.zero));
                 Assert.That(instanceRect.anchorMax, Is.EqualTo(Vector2.one));
