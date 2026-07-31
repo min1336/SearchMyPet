@@ -218,11 +218,15 @@ namespace SearchMyPet.AR
                 }
             }
             IsPainting = character != null;
-            paintUi?.SetActive(true);
-            SetCameraUiVisible(!IsPainting);
             if (character == null)
             {
                 ToolsOpen = false;
+            }
+            paintUi?.SetActive(true);
+            placementInstructionPanel?.SetActive(!IsPainting);
+            cameraLensSelector?.SetActive(!ToolsOpen);
+            if (character == null)
+            {
                 return;
             }
 
@@ -294,6 +298,7 @@ namespace SearchMyPet.AR
         public void OpenToolMenu()
         {
             ToolsOpen = true;
+            cameraLensSelector?.SetActive(false);
             quickControls?.SetActive(true);
             toolbar?.SetActive(true);
             topBar?.SetActive(true);
@@ -303,6 +308,7 @@ namespace SearchMyPet.AR
         public void CloseToolMenu()
         {
             ToolsOpen = false;
+            cameraLensSelector?.SetActive(true);
             quickControls?.SetActive(true);
             toolbar?.SetActive(false);
             topBar?.SetActive(true);

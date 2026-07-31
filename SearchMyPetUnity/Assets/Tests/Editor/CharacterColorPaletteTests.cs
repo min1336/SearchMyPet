@@ -229,9 +229,12 @@ namespace SearchMyPet.AR.Tests
 
                 var safeArea = instance.transform.Find("Character Paint UI/Safe Area");
                 var paletteButton = safeArea.Find("Paint Quick Controls/Color Palette Button").GetComponent<Button>();
+                var lensSelector = GameObject.Find("Status Canvas").transform.Find("Camera Lens Selector").gameObject;
+                Assert.That(lensSelector.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.True);
+                Assert.That(lensSelector.activeSelf, Is.False);
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Toolbar").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Top Bar").gameObject.activeSelf, Is.True);
@@ -240,6 +243,7 @@ namespace SearchMyPet.AR.Tests
 
                 paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.False);
+                Assert.That(lensSelector.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Toolbar").gameObject.activeSelf, Is.False);
                 Assert.That(safeArea.Find("Paint Tool Options").gameObject.activeSelf, Is.False);
@@ -253,8 +257,10 @@ namespace SearchMyPet.AR.Tests
                 var character = new GameObject("Character");
                 paletteButton.onClick.RemoveAllListeners();
                 palette.SetCharacter(character);
+                Assert.That(lensSelector.activeSelf, Is.True);
                 paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.True);
+                Assert.That(lensSelector.activeSelf, Is.False);
                 Object.DestroyImmediate(character);
 
                 Assert.That(canvasObject.transform.Find("SearchMyPetAppUI"), Is.Not.Null);
