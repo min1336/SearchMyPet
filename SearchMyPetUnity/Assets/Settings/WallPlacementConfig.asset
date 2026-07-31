@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8f03ebf9f131c844b85ae6b0f55d02e, type: 3}
+  m_Name: WallPlacementConfig
+  m_EditorClassIdentifier: Assembly-CSharp::SearchMyPet.AR.WallPlacementConfig
+  wallOffsetMeters: 0.02
+  minimumPlaneSizeMeters: {x: 0.3, y: 0.3}
+  candidateStabilitySeconds: 0.75
+  maximumPlanePositionDeltaMeters: 0.015
+  maximumPlaneRotationDeltaDegrees: 2.5
+  maximumPlaneSizeDeltaMeters: 0.03
+  footprintWidthMeters: 0.18
+  footprintHeightMeters: 0.18
+  maximumFootprintDepthSpreadMeters: 0.2
+  maximumFootprintNormalAngleDegrees: 5
+  minimumPlacementDistanceMeters: 0.4
+  maximumPlacementDistanceMeters: 4
+  maximumViewAngleDegrees: 60
+  maximumObservationIntervalSeconds: 0.2
+  trackingRecoverySeconds: 0.75
+  characterHeightMeters: 0.18
+  useEnvironmentDepthValidation: 1
+  minimumValidEnvironmentDepthSamples: 3
+  maximumEnvironmentDepthDeviationMeters: 0.25
+  maximumEnvironmentDepthResidualSpreadMeters: 0.12
+  environmentDepthValidationIntervalSeconds: 0.1

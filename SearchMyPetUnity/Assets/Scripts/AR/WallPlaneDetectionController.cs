@@ -19,6 +19,8 @@ namespace SearchMyPet.AR
         [SerializeField] private ARAnchorManager anchorManager;
         [SerializeField] private Text statusText;
         [SerializeField] private Text detailText;
+        [SerializeField] private Button retryButton;
+        [SerializeField] private Button settingsButton;
 
         private int trackedVerticalPlaneCount;
         private bool hasLoggedFirstVerticalPlane;
@@ -38,20 +40,6 @@ namespace SearchMyPet.AR
             public readonly PlaneAlignment alignment;
             public readonly TrackingState trackingState;
             public readonly Vector2 extents;
-        }
-
-        public void Configure(
-            ARPlaneManager configuredPlaneManager,
-            ARRaycastManager configuredRaycastManager,
-            ARAnchorManager configuredAnchorManager,
-            Text configuredStatusText,
-            Text configuredDetailText)
-        {
-            planeManager = configuredPlaneManager;
-            raycastManager = configuredRaycastManager;
-            anchorManager = configuredAnchorManager;
-            statusText = configuredStatusText;
-            detailText = configuredDetailText;
         }
 
         private void Awake()
@@ -136,18 +124,12 @@ namespace SearchMyPet.AR
             }
 
             isRequestingCameraPermission = false;
-            cameraPermissionDenied = !Application.HasUserAuthorization(UserAuthorization.WebCam);
-            if (cameraPermissionDenied)
-            {
-                planeManager.enabled = false;
-                SetStatus(
-                    "카메라 권한이 필요합니다",
-                    "설정에서 카메라를 허용한 뒤 앱을 다시 실행해 주세요.");
-                Debug.LogWarning("[WallPlaneDetection] Camera permission was denied.");
-                yield break;
-            }
-
+            // ARKit owns camera access on iOS. The general WebCam authorization
+            // query can remain false after the AR permission prompt was allowed,
+            // so it must not disable the AR plane manager here.
+            cameraPermissionDenied = false;
             planeManager.enabled = true;
+            SetPermissionActionsVisible(false);
             SetStatus("벽면을 탐색 중", "벽에서 1~2m 떨어져 천천히 비춰 주세요.");
 #endif
         }
@@ -254,11 +236,28 @@ namespace SearchMyPet.AR
             }
 
             trackedVerticalPlaneCount = 0;
+            ARPlane largestTrackedVerticalPlane = null;
+            var largestTrackedVerticalPlaneArea = 0f;
             foreach (var plane in planeManager.trackables)
             {
                 if (plane.alignment == PlaneAlignment.Vertical && plane.trackingState == TrackingState.Tracking)
                 {
                     trackedVerticalPlaneCount++;
+                    var area = plane.size.x * plane.size.y;
+                    if (area > largestTrackedVerticalPlaneArea)
+                    {
+                        largestTrackedVerticalPlane = plane;
+                        largestTrackedVerticalPlaneArea = area;
+                    }
+                }
+            }
+
+            foreach (var plane in planeManager.trackables)
+            {
+                var visualizer = plane.GetComponent<WallPlaneOutlineVisualizer>();
+                if (visualizer != null)
+                {
+                    visualizer.SetHighlighted(plane == largestTrackedVerticalPlane);
                 }
             }
 
@@ -305,6 +304,19 @@ namespace SearchMyPet.AR
             if (detailText != null)
             {
                 detailText.text = detail;
+            }
+        }
+
+        private void SetPermissionActionsVisible(bool visible)
+        {
+            if (retryButton != null)
+            {
+                retryButton.gameObject.SetActive(visible);
+            }
+
+            if (settingsButton != null)
+            {
+                settingsButton.gameObject.SetActive(visible);
             }
         }
     }
