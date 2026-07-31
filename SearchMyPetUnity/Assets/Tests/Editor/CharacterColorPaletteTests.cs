@@ -173,8 +173,15 @@ namespace SearchMyPet.AR.Tests
             var toolbar = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar");
             var toolOptions = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options");
             Assert.That(quickControls.anchoredPosition, Is.EqualTo(new Vector2(0f, 75f)));
-            Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 159f)));
-            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 241f)));
+            Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 176.481f)));
+            Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 257.581f)));
+            var safeAreaRect = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area");
+            var captureButton = (RectTransform)quickControls.Find("Capture Button");
+            GetVerticalBounds(captureButton, safeAreaRect, out _, out var quickTop);
+            GetVerticalBounds(toolbar, safeAreaRect, out var toolbarBottom, out var toolbarTop);
+            GetVerticalBounds(toolOptions, safeAreaRect, out var optionsBottom, out _);
+            Assert.That(toolbarBottom - quickTop, Is.GreaterThanOrEqualTo(8f));
+            Assert.That(optionsBottom - toolbarTop, Is.EqualTo(6f).Within(0.01f));
             var topScrim = prefab.transform.Find("Top Camera Scrim").GetComponent<Image>();
             var bottomScrim = prefab.transform.Find("Bottom Camera Scrim").GetComponent<Image>();
             Assert.That(topScrim.rectTransform.sizeDelta.y, Is.EqualTo(128f));
@@ -221,11 +228,14 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Toolbar").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Top Bar").gameObject.activeSelf, Is.True);
+                safeArea.Find("Paint Toolbar/팔레트").GetComponent<Button>().onClick.Invoke();
+                Assert.That(safeArea.Find("Paint Tool Options").gameObject.activeSelf, Is.True);
 
                 paletteButton.onClick.Invoke();
                 Assert.That(palette.ToolsOpen, Is.False);
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Toolbar").gameObject.activeSelf, Is.False);
+                Assert.That(safeArea.Find("Paint Tool Options").gameObject.activeSelf, Is.False);
 
                 paletteButton.onClick.Invoke();
                 safeArea.Find("Paint Top Bar/완료").GetComponent<Button>().onClick.Invoke();
@@ -297,6 +307,14 @@ namespace SearchMyPet.AR.Tests
         private static void CloseSceneIfOpened(Scene scene)
         {
             if (scene.IsValid()) EditorSceneManager.CloseScene(scene, true);
+        }
+
+        private static void GetVerticalBounds(RectTransform rect, RectTransform relativeTo, out float bottom, out float top)
+        {
+            var corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            bottom = relativeTo.InverseTransformPoint(corners[0]).y;
+            top = relativeTo.InverseTransformPoint(corners[1]).y;
         }
     }
 }
