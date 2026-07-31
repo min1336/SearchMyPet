@@ -168,7 +168,7 @@ namespace SearchMyPet.AR.Tests
             {
                 var handle = prefab.transform.Find($"Character Paint UI/Safe Area/Paint Tool Options/Palette Options/{sliderName}/Handle")
                     .GetComponent<Image>();
-                Assert.That(handle.rectTransform.sizeDelta, Is.EqualTo(new Vector2(4f, 24f)));
+                Assert.That(handle.rectTransform.sizeDelta, Is.EqualTo(new Vector2(7.5f, 15f)));
                 Assert.That(handle.sprite, Is.Null);
             }
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls/Color Palette Button/Selected Color"), Is.Not.Null);
@@ -182,7 +182,8 @@ namespace SearchMyPet.AR.Tests
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar").gameObject.activeSelf, Is.False);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Top Bar").gameObject.activeSelf, Is.True);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options").gameObject.activeSelf, Is.False);
-            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Size Options").gameObject.activeSelf, Is.True);
+            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Size Options").gameObject.activeSelf, Is.False);
+            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Palette Options").gameObject.activeSelf, Is.True);
             var quickControls = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls");
             var toolbar = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar");
             var toolOptions = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options");
