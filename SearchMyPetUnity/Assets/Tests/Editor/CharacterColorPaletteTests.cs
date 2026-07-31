@@ -147,8 +147,9 @@ namespace SearchMyPet.AR.Tests
         [Test]
         public void SceneUi_IsUnpackedAndStacksPaintPanels()
         {
-            var prefab = GetSceneUi();
-
+            var prefab = GetSceneUi(out var openedScene);
+            try
+            {
             Assert.That(PrefabUtility.GetPrefabInstanceStatus(prefab), Is.EqualTo(PrefabInstanceStatus.NotAPrefab));
             Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/SearchMyPetAppUI.prefab"), Is.Null);
             Assert.That(AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Editor/PaintUiPrefabStyler.cs"), Is.Null);
@@ -184,12 +185,17 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(tool.GetComponent<Outline>(), Is.Not.Null);
                 Assert.That(tool.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(65f, 56f)));
             }
+            }
+            finally
+            {
+                CloseSceneIfOpened(openedScene);
+            }
         }
 
         [Test]
         public void SceneUi_BindsWithoutCreatingDuplicateUi()
         {
-            var prefab = GetSceneUi();
+            var prefab = GetSceneUi(out var openedScene);
             var canvasObject = new GameObject("Canvas", typeof(Canvas));
             var controller = new GameObject("Controller");
             try
@@ -240,6 +246,7 @@ namespace SearchMyPet.AR.Tests
             {
                 Object.DestroyImmediate(controller);
                 Object.DestroyImmediate(canvasObject);
+                CloseSceneIfOpened(openedScene);
             }
         }
 
@@ -253,12 +260,14 @@ namespace SearchMyPet.AR.Tests
             return renderer;
         }
 
-        private static GameObject GetSceneUi()
+        private static GameObject GetSceneUi(out Scene openedScene)
         {
             var scene = SceneManager.GetSceneByPath(ScenePath);
+            openedScene = default;
             if (!scene.IsValid() || !scene.isLoaded)
             {
-                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+                openedScene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
+                scene = openedScene;
             }
 
             foreach (var root in scene.GetRootGameObjects())
@@ -272,6 +281,11 @@ namespace SearchMyPet.AR.Tests
 
             Assert.Fail("SearchMyPetAppUI not found");
             return null;
+        }
+
+        private static void CloseSceneIfOpened(Scene scene)
+        {
+            if (scene.IsValid()) EditorSceneManager.CloseScene(scene, true);
         }
     }
 }
