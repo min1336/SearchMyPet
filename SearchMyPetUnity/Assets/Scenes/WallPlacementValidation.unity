@@ -1183,9 +1183,11 @@ MonoBehaviour:
   characterPrefab: {fileID: 4619281794899486126, guid: 25f4d139f6f8b8b488f4c2ef22ddd041, type: 3}
   laydownPosePrefab: {fileID: 919132149155446097, guid: 8639e6045c397b04c93561b0afbcabc9, type: 3}
   sitdownPosePrefab: {fileID: 919132149155446097, guid: f37237cb93fc79e48a8f4e5c6b33f0ce, type: 3}
+  raisedArmsPosePrefab: {fileID: 919132149155446097, guid: edbb5039f5dbeb14e8dcf155e4b939bf, type: 3}
   basicPoseThumbnail: {fileID: 21300000, guid: 62a315f04aa285a41b2609ebddfef78f, type: 3}
   laydownPoseThumbnail: {fileID: 21300000, guid: 77b85d0d16c27ff40aa36bcaaef22374, type: 3}
   sitdownPoseThumbnail: {fileID: 21300000, guid: 0f587b5b525b4bb4db8f961fdeffb6e8, type: 3}
+  raisedArmsPoseThumbnail: {fileID: 21300000, guid: 58a72ec72d8d0f64cac01071a5ef027d, type: 3}
   config: {fileID: 11400000, guid: 4f5dba044f6e9664ab0c90a06418932e, type: 2}
   instructionText: {fileID: 233448590}
   placeButton: {fileID: 6995035149911365693}

@@ -108,7 +108,8 @@ namespace SearchMyPet.AR
         {
             new(0f, 0f, 0f),
             new(0f, -35f, -12f),
-            new(0f, 35f, 12f)
+            new(0f, 35f, 12f),
+            new(0f, 50f, 18f)
         };
         private readonly GameObject[] poseVisualInstances = new GameObject[PoseRotations.Length];
         private GameObject paintUi;
@@ -366,9 +367,9 @@ namespace SearchMyPet.AR
             CloseToolMenu();
         }
 
-        public void SetPosePrefabs(GameObject laydown, GameObject sitdown)
+        public void SetPosePrefabs(GameObject laydown, GameObject sitdown, GameObject raisedArms)
         {
-            posePrefabs = new[] { null, laydown, sitdown };
+            posePrefabs = new[] { null, laydown, sitdown, raisedArms };
             if (paintTarget == null)
             {
                 return;
@@ -379,9 +380,9 @@ namespace SearchMyPet.AR
             BuildPaintSurfaces();
         }
 
-        public void SetPoseThumbnails(Sprite basic, Sprite laydown, Sprite sitdown)
+        public void SetPoseThumbnails(Sprite basic, Sprite laydown, Sprite sitdown, Sprite raisedArms)
         {
-            poseThumbnails = new[] { basic, laydown, sitdown };
+            poseThumbnails = new[] { basic, laydown, sitdown, raisedArms };
             for (var index = 0; index < poseThumbnailImages.Length; index++)
             {
                 if (poseThumbnailImages[index] != null)
@@ -1132,7 +1133,7 @@ namespace SearchMyPet.AR
             capture.GetComponent<Image>().sprite = circleSprite;
             SetRect((RectTransform)capture.transform, new Vector2(328f, 8f), new Vector2(68f, 68f), Vector2.zero, Vector2.zero, Vector2.zero);
             var pose = CreateButton(quickControls.transform, "Pose Button", Card, Color.white, OpenPosePopup);
-            pose.GetComponentInChildren<Text>().text = "♙\n1 / 3";
+            pose.GetComponentInChildren<Text>().text = "♙\n1 / 4";
             SetRect((RectTransform)pose.transform, new Vector2(628f, 12f), new Vector2(64f, 60f), Vector2.zero, Vector2.zero, Vector2.zero);
         }
 

@@ -240,18 +240,21 @@ namespace SearchMyPet.AR.Tests
             var basicThumbnail = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Models/Chameleon/Poses/Thumbnails/Basic.png");
             var laydownThumbnail = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Models/Chameleon/Poses/Thumbnails/Laydown.png");
             var sitdownThumbnail = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Models/Chameleon/Poses/Thumbnails/Sitdown.png");
+            var raisedArmsThumbnail = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Models/Chameleon/Poses/Thumbnails/RaisedArms.png");
             try
             {
                 Assert.That(basicThumbnail, Is.Not.Null);
                 Assert.That(laydownThumbnail, Is.Not.Null);
                 Assert.That(sitdownThumbnail, Is.Not.Null);
+                Assert.That(raisedArmsThumbnail, Is.Not.Null);
                 var palette = paletteObject.AddComponent<CharacterColorPalette>();
-                palette.SetPoseThumbnails(basicThumbnail, laydownThumbnail, sitdownThumbnail);
+                palette.SetPoseThumbnails(basicThumbnail, laydownThumbnail, sitdownThumbnail, raisedArmsThumbnail);
                 palette.Initialize(canvasObject.transform);
                 palette.SetCharacter(character);
 
                 var paintUi = canvasObject.transform.Find("Character Paint UI");
                 var poseButton = paintUi.Find("Safe Area/Paint Quick Controls/Pose Button").GetComponent<Button>();
+                Assert.That(poseButton.GetComponentInChildren<Text>().text, Does.Contain("1 / 4"));
                 var popup = paintUi.Find("Pose Popup");
                 var card = (RectTransform)popup.Find("Pose Popup Card");
 
@@ -259,7 +262,7 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(card.Find("Label"), Is.Null);
                 Assert.That(card.Find("Close Pose Popup"), Is.Null);
                 var options = card.GetComponentsInChildren<Button>(true);
-                Assert.That(options, Has.Length.EqualTo(3));
+                Assert.That(options, Has.Length.EqualTo(4));
                 for (var index = 0; index < options.Length; index++)
                 {
                     var thumbnail = options[index].transform.Find("Pose Thumbnail").GetComponent<Image>();
@@ -303,13 +306,15 @@ namespace SearchMyPet.AR.Tests
             var character = GameObject.CreatePrimitive(PrimitiveType.Cube);
             var laydown = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Chameleon/Poses/ChameleonLaydown.fbx");
             var sitdown = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Chameleon/Poses/ChameleonSitdown.fbx");
+            var raisedArms = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Chameleon/Poses/ChameleonRaisedArms.fbx");
             try
             {
                 Assert.That(laydown, Is.Not.Null);
                 Assert.That(sitdown, Is.Not.Null);
+                Assert.That(raisedArms, Is.Not.Null);
                 var palette = paletteObject.AddComponent<CharacterColorPalette>();
                 palette.Initialize(canvasObject.transform);
-                palette.SetPosePrefabs(laydown, sitdown);
+                palette.SetPosePrefabs(laydown, sitdown, raisedArms);
                 character.SetActive(false);
                 palette.SetCharacter(character);
 
@@ -328,9 +333,16 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(sitdownInstance, Is.Not.Null);
                 Assert.That(sitdownInstance.gameObject.activeSelf, Is.True);
 
+                palette.SelectPose(3);
+                var raisedArmsInstance = character.transform.Find("ChameleonRaisedArms Pose");
+                Assert.That(sitdownInstance.gameObject.activeSelf, Is.False);
+                Assert.That(raisedArmsInstance, Is.Not.Null);
+                Assert.That(raisedArmsInstance.gameObject.activeSelf, Is.True);
+
                 palette.SelectPose(0);
                 Assert.That(baseRenderer.gameObject.activeSelf, Is.True);
                 Assert.That(sitdownInstance.gameObject.activeSelf, Is.False);
+                Assert.That(raisedArmsInstance.gameObject.activeSelf, Is.False);
                 Assert.That(baseRenderer.sharedMaterial, Is.SameAs(baseMaterial));
             }
             finally

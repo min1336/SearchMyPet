@@ -12,9 +12,11 @@ namespace SearchMyPet.AR
         [SerializeField] private GameObject characterPrefab;
         [SerializeField] private GameObject laydownPosePrefab;
         [SerializeField] private GameObject sitdownPosePrefab;
+        [SerializeField] private GameObject raisedArmsPosePrefab;
         [SerializeField] private Sprite basicPoseThumbnail;
         [SerializeField] private Sprite laydownPoseThumbnail;
         [SerializeField] private Sprite sitdownPoseThumbnail;
+        [SerializeField] private Sprite raisedArmsPoseThumbnail;
         [SerializeField] private WallPlacementConfig config;
         [SerializeField] private Text instructionText;
         [SerializeField] private Button placeButton;
@@ -69,8 +71,8 @@ namespace SearchMyPet.AR
         private void Start()
         {
             var canvas = FindAnyObjectByType<Canvas>()?.transform;
-            colorPalette.SetPosePrefabs(laydownPosePrefab, sitdownPosePrefab);
-            colorPalette.SetPoseThumbnails(basicPoseThumbnail, laydownPoseThumbnail, sitdownPoseThumbnail);
+            colorPalette.SetPosePrefabs(laydownPosePrefab, sitdownPosePrefab, raisedArmsPosePrefab);
+            colorPalette.SetPoseThumbnails(basicPoseThumbnail, laydownPoseThumbnail, sitdownPoseThumbnail, raisedArmsPoseThumbnail);
             colorPalette.Initialize(canvas);
             appTabs = GetComponent<AppTabController>() ?? gameObject.AddComponent<AppTabController>();
             appTabs.Initialize(canvas);
