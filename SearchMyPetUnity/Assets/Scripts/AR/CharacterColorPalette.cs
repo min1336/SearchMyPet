@@ -120,6 +120,8 @@ namespace SearchMyPet.AR
         private GameObject posePopup;
         private Button[] poseOptions;
         private Outline[] poseOptionOutlines;
+        private readonly Image[] poseThumbnailImages = new Image[PoseRotations.Length];
+        private Sprite[] poseThumbnails = new Sprite[PoseRotations.Length];
         private GameObject[] posePrefabs = new GameObject[PoseRotations.Length];
         private GameObject cameraLensSelector;
         private GameObject placementInstructionPanel;
@@ -375,6 +377,18 @@ namespace SearchMyPet.AR
             ApplySelectedPose();
             ClearPaintSurfaces();
             BuildPaintSurfaces();
+        }
+
+        public void SetPoseThumbnails(Sprite basic, Sprite laydown, Sprite sitdown)
+        {
+            poseThumbnails = new[] { basic, laydown, sitdown };
+            for (var index = 0; index < poseThumbnailImages.Length; index++)
+            {
+                if (poseThumbnailImages[index] != null)
+                {
+                    poseThumbnailImages[index].sprite = poseThumbnails[index];
+                }
+            }
         }
 
         private void BuildPaintSurfaces()
@@ -1166,10 +1180,22 @@ namespace SearchMyPet.AR
                 var capturedIndex = index;
                 var option = CreateButton(
                     card.transform,
-                    (index + 1).ToString(),
+                    "Pose Option " + index,
                     Card,
                     Color.white,
                     () => SelectPose(capturedIndex));
+                var label = option.GetComponentInChildren<Text>();
+                label.gameObject.SetActive(false);
+                var thumbnailObject = new GameObject("Pose Thumbnail", typeof(RectTransform), typeof(Image));
+                thumbnailObject.transform.SetParent(option.transform, false);
+                var thumbnail = thumbnailObject.GetComponent<Image>();
+                thumbnail.sprite = poseThumbnails[index];
+                thumbnail.preserveAspect = true;
+                thumbnail.raycastTarget = false;
+                SetRect(thumbnail.rectTransform, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.one);
+                thumbnail.rectTransform.offsetMin = new Vector2(8f, 8f);
+                thumbnail.rectTransform.offsetMax = new Vector2(-8f, -8f);
+                poseThumbnailImages[index] = thumbnail;
                 var outline = option.gameObject.AddComponent<Outline>();
                 outline.effectColor = Neon;
                 outline.effectDistance = new Vector2(3f, 3f);

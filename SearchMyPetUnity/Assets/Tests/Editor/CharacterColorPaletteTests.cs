@@ -237,9 +237,16 @@ namespace SearchMyPet.AR.Tests
             var paletteObject = new GameObject("Palette");
             var canvasObject = new GameObject("Canvas", typeof(Canvas));
             var character = new GameObject("Character");
+            var basicThumbnail = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Models/Chameleon/Poses/Thumbnails/Basic.png");
+            var laydownThumbnail = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Models/Chameleon/Poses/Thumbnails/Laydown.png");
+            var sitdownThumbnail = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Models/Chameleon/Poses/Thumbnails/Sitdown.png");
             try
             {
+                Assert.That(basicThumbnail, Is.Not.Null);
+                Assert.That(laydownThumbnail, Is.Not.Null);
+                Assert.That(sitdownThumbnail, Is.Not.Null);
                 var palette = paletteObject.AddComponent<CharacterColorPalette>();
+                palette.SetPoseThumbnails(basicThumbnail, laydownThumbnail, sitdownThumbnail);
                 palette.Initialize(canvasObject.transform);
                 palette.SetCharacter(character);
 
@@ -253,6 +260,12 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(card.Find("Close Pose Popup"), Is.Null);
                 var options = card.GetComponentsInChildren<Button>(true);
                 Assert.That(options, Has.Length.EqualTo(3));
+                for (var index = 0; index < options.Length; index++)
+                {
+                    var thumbnail = options[index].transform.Find("Pose Thumbnail").GetComponent<Image>();
+                    Assert.That(thumbnail.sprite, Is.Not.Null);
+                    Assert.That(options[index].transform.Find("Label").gameObject.activeSelf, Is.False);
+                }
                 Assert.That(card.anchorMin, Is.EqualTo(new Vector2(0.5f, 0.5f)));
                 Assert.That(card.anchorMax, Is.EqualTo(new Vector2(0.5f, 0.5f)));
                 Assert.That(card.pivot, Is.EqualTo(new Vector2(0.5f, 0.5f)));
