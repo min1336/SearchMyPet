@@ -232,14 +232,16 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
-        public void PoseButton_OpensAndClosesCenteredPopup()
+        public void PoseButton_OpensCenteredTwoByTwoPosePopupAndTogglesClosed()
         {
             var paletteObject = new GameObject("Palette");
             var canvasObject = new GameObject("Canvas", typeof(Canvas));
+            var character = new GameObject("Character");
             try
             {
                 var palette = paletteObject.AddComponent<CharacterColorPalette>();
                 palette.Initialize(canvasObject.transform);
+                palette.SetCharacter(character);
 
                 var paintUi = canvasObject.transform.Find("Character Paint UI");
                 var poseButton = paintUi.Find("Safe Area/Paint Quick Controls/Pose Button").GetComponent<Button>();
@@ -247,22 +249,36 @@ namespace SearchMyPet.AR.Tests
                 var card = (RectTransform)popup.Find("Pose Popup Card");
 
                 Assert.That(popup.gameObject.activeSelf, Is.False);
+                Assert.That(card.Find("Label"), Is.Null);
+                Assert.That(card.Find("Close Pose Popup"), Is.Null);
+                var options = card.GetComponentsInChildren<Button>(true);
+                Assert.That(options, Has.Length.EqualTo(4));
                 Assert.That(card.anchorMin, Is.EqualTo(new Vector2(0.5f, 0.5f)));
                 Assert.That(card.anchorMax, Is.EqualTo(new Vector2(0.5f, 0.5f)));
                 Assert.That(card.pivot, Is.EqualTo(new Vector2(0.5f, 0.5f)));
                 Assert.That(card.anchoredPosition, Is.EqualTo(Vector2.zero));
+                Assert.That(options[0].GetComponent<Outline>().enabled, Is.True);
+                Assert.That(options[1].GetComponent<Outline>().enabled, Is.False);
+                var initialRotation = character.transform.localRotation;
 
                 poseButton.onClick.Invoke();
                 Assert.That(palette.IsPosePopupVisible, Is.True);
                 Assert.That(popup.gameObject.activeSelf, Is.True);
 
-                popup.Find("Pose Popup Card/Close Pose Popup").GetComponent<Button>().onClick.Invoke();
+                options[2].onClick.Invoke();
+                Assert.That(palette.SelectedPoseIndex, Is.EqualTo(2));
+                Assert.That(options[0].GetComponent<Outline>().enabled, Is.False);
+                Assert.That(options[2].GetComponent<Outline>().enabled, Is.True);
+                Assert.That(Quaternion.Angle(initialRotation, character.transform.localRotation), Is.GreaterThan(0f));
+
+                poseButton.onClick.Invoke();
                 Assert.That(palette.IsPosePopupVisible, Is.False);
             }
             finally
             {
                 Object.DestroyImmediate(paletteObject);
                 Object.DestroyImmediate(canvasObject);
+                Object.DestroyImmediate(character);
             }
         }
 

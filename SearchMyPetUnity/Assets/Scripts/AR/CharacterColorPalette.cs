@@ -103,6 +103,13 @@ namespace SearchMyPet.AR
         private readonly Outline[] toolOutlines = new Outline[5];
         private readonly Text[] toolIcons = new Text[5];
         private readonly Text[] toolLabels = new Text[5];
+        private static readonly Vector3[] PoseRotations =
+        {
+            new(0f, 0f, 0f),
+            new(0f, -35f, -12f),
+            new(0f, 35f, 12f),
+            new(0f, 180f, 0f)
+        };
         private GameObject paintUi;
         private GameObject contextPanel;
         private GameObject quickControls;
@@ -110,8 +117,13 @@ namespace SearchMyPet.AR
         private GameObject topBar;
         private GameObject historyControls;
         private GameObject posePopup;
+        private Button[] poseOptions;
+        private Outline[] poseOptionOutlines;
         private GameObject cameraLensSelector;
         private GameObject placementInstructionPanel;
+        private GameObject paintTarget;
+        private Quaternion paintTargetBaseLocalRotation;
+        private int selectedPoseIndex;
         private Button undoButton;
         private Button redoButton;
         private ARCameraManager arCameraManager;
@@ -140,6 +152,7 @@ namespace SearchMyPet.AR
         public bool CanUndo => undoHistory.Count > 0;
         public bool CanRedo => redoHistory.Count > 0;
         public bool IsPosePopupVisible => posePopup != null && posePopup.activeSelf;
+        public int SelectedPoseIndex => selectedPoseIndex;
 
         public void Initialize(Transform canvas)
         {
@@ -312,6 +325,11 @@ namespace SearchMyPet.AR
         public void SetCharacter(GameObject character)
         {
             ClearPaintTarget();
+            paintTarget = character;
+            paintTargetBaseLocalRotation = character == null
+                ? Quaternion.identity
+                : character.transform.localRotation;
+            ApplySelectedPose();
             if (usesEditableUi)
             {
                 if (quickControls == null || toolbar == null || topBar == null || contextPanel == null)
@@ -470,13 +488,62 @@ namespace SearchMyPet.AR
                 return;
             }
 
+            if (posePopup.activeSelf)
+            {
+                ClosePosePopup();
+                return;
+            }
+
             CloseToolMenu();
             posePopup.SetActive(true);
         }
 
         public void ClosePosePopup()
         {
-            posePopup?.SetActive(false);
+            if (posePopup != null)
+            {
+                posePopup.SetActive(false);
+            }
+        }
+
+        public void SelectPose(int poseIndex)
+        {
+            if ((uint)poseIndex >= PoseRotations.Length)
+            {
+                return;
+            }
+
+            selectedPoseIndex = poseIndex;
+            ApplySelectedPose();
+            UpdatePoseSelection();
+        }
+
+        private void ApplySelectedPose()
+        {
+            if (paintTarget == null)
+            {
+                return;
+            }
+
+            // ponytail: the imported model is a baked static mesh, so use four visible orientation presets until pose assets exist.
+            paintTarget.transform.localRotation = paintTargetBaseLocalRotation
+                * Quaternion.Euler(PoseRotations[selectedPoseIndex]);
+        }
+
+        private void UpdatePoseSelection()
+        {
+            if (poseOptionOutlines == null)
+            {
+                return;
+            }
+
+            for (var index = 0; index < poseOptionOutlines.Length; index++)
+            {
+                if (poseOptionOutlines[index] != null)
+                {
+                    poseOptionOutlines[index].enabled = index == selectedPoseIndex;
+                }
+            }
         }
 
         public void Undo()
@@ -962,7 +1029,7 @@ namespace SearchMyPet.AR
 
             var backdrop = posePopup.GetComponent<Image>();
             backdrop.color = new Color(0f, 0f, 0f, 0.55f);
-            backdrop.raycastTarget = true;
+            backdrop.raycastTarget = false;
 
             var card = new GameObject("Pose Popup Card", typeof(RectTransform), typeof(Image));
             card.transform.SetParent(posePopup.transform, false);
@@ -979,25 +1046,35 @@ namespace SearchMyPet.AR
             cardImage.sprite = roundedSprite;
             cardImage.type = Image.Type.Sliced;
 
-            var title = CreateText(card.transform, "POSE", 24, Color.white);
-            SetRect(
-                title.rectTransform,
-                new Vector2(0f, 64f),
-                new Vector2(260f, 42f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f));
+            poseOptions = new Button[PoseRotations.Length];
+            poseOptionOutlines = new Outline[PoseRotations.Length];
+            for (var index = 0; index < poseOptions.Length; index++)
+            {
+                var capturedIndex = index;
+                var option = CreateButton(
+                    card.transform,
+                    (index + 1).ToString(),
+                    Card,
+                    Color.white,
+                    () => SelectPose(capturedIndex));
+                var outline = option.gameObject.AddComponent<Outline>();
+                outline.effectColor = Neon;
+                outline.effectDistance = new Vector2(3f, 3f);
+                poseOptions[index] = option;
+                poseOptionOutlines[index] = outline;
 
-            var close = CreateButton(card.transform, "Close Pose Popup", Card, Color.white, ClosePosePopup);
-            close.GetComponentInChildren<Text>().text = "CLOSE";
-            SetRect(
-                (RectTransform)close.transform,
-                new Vector2(0f, -68f),
-                new Vector2(120f, 48f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f));
+                var column = index % 2;
+                var row = index / 2;
+                SetRect(
+                    (RectTransform)option.transform,
+                    new Vector2(column == 0 ? -70f : 70f, row == 0 ? 50f : -50f),
+                    new Vector2(124f, 86f),
+                    new Vector2(0.5f, 0.5f),
+                    new Vector2(0.5f, 0.5f),
+                    new Vector2(0.5f, 0.5f));
+            }
 
+            UpdatePoseSelection();
             posePopup.SetActive(false);
         }
 
@@ -1208,6 +1285,10 @@ namespace SearchMyPet.AR
         private void ClearPaintTarget()
         {
             ClosePosePopup();
+            paintTarget = null;
+            paintTargetBaseLocalRotation = Quaternion.identity;
+            selectedPoseIndex = 0;
+            UpdatePoseSelection();
             ResetPaintStroke();
             undoHistory.Clear();
             redoHistory.Clear();
