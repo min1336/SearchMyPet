@@ -320,24 +320,28 @@ namespace SearchMyPet.AR.Tests
 
                 var baseRenderer = character.GetComponent<Renderer>();
                 var baseMaterial = baseRenderer.sharedMaterial;
+                var baseSize = Mathf.Max(baseRenderer.bounds.size.x, baseRenderer.bounds.size.y, baseRenderer.bounds.size.z);
                 palette.SelectPose(1);
                 var laydownInstance = character.transform.Find("ChameleonLaydown Pose");
                 Assert.That(laydownInstance, Is.Not.Null);
                 Assert.That(baseRenderer.gameObject.activeSelf, Is.False);
                 Assert.That(laydownInstance.gameObject.activeSelf, Is.True);
                 Assert.That(laydownInstance.GetComponentInChildren<Renderer>(true), Is.Not.Null);
+                Assert.That(GetMaxBoundsSize(laydownInstance.gameObject), Is.EqualTo(baseSize).Within(0.01f));
 
                 palette.SelectPose(2);
                 var sitdownInstance = character.transform.Find("ChameleonSitdown Pose");
                 Assert.That(laydownInstance.gameObject.activeSelf, Is.False);
                 Assert.That(sitdownInstance, Is.Not.Null);
                 Assert.That(sitdownInstance.gameObject.activeSelf, Is.True);
+                Assert.That(GetMaxBoundsSize(sitdownInstance.gameObject), Is.EqualTo(baseSize).Within(0.01f));
 
                 palette.SelectPose(3);
                 var raisedArmsInstance = character.transform.Find("ChameleonRaisedArms Pose");
                 Assert.That(sitdownInstance.gameObject.activeSelf, Is.False);
                 Assert.That(raisedArmsInstance, Is.Not.Null);
                 Assert.That(raisedArmsInstance.gameObject.activeSelf, Is.True);
+                Assert.That(GetMaxBoundsSize(raisedArmsInstance.gameObject), Is.EqualTo(baseSize).Within(0.01f));
 
                 palette.SelectPose(0);
                 Assert.That(baseRenderer.gameObject.activeSelf, Is.True);
@@ -582,6 +586,18 @@ namespace SearchMyPet.AR.Tests
             var renderer = part.GetComponent<Renderer>();
             renderer.sharedMaterial = material;
             return renderer;
+        }
+
+        private static float GetMaxBoundsSize(GameObject root)
+        {
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            var bounds = renderers[0].bounds;
+            for (var index = 1; index < renderers.Length; index++)
+            {
+                bounds.Encapsulate(renderers[index].bounds);
+            }
+
+            return Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
         }
 
         private static GameObject GetSceneUi(out Scene openedScene)

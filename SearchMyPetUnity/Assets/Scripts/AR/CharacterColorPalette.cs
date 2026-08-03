@@ -611,16 +611,23 @@ namespace SearchMyPet.AR
         {
             var baseSize = GetMaxBoundsSize(basePoseRenderers);
             var poseSize = GetMaxBoundsSize(posePrefab.GetComponentsInChildren<Renderer>(true));
+            var poseRootScale = Mathf.Max(
+                Mathf.Abs(posePrefab.transform.lossyScale.x),
+                Mathf.Abs(posePrefab.transform.lossyScale.y),
+                Mathf.Abs(posePrefab.transform.lossyScale.z));
             var parentScale = Mathf.Max(
                 Mathf.Abs(paintTarget.transform.lossyScale.x),
                 Mathf.Abs(paintTarget.transform.lossyScale.y),
                 Mathf.Abs(paintTarget.transform.lossyScale.z));
-            if (baseSize <= Mathf.Epsilon || poseSize <= Mathf.Epsilon || parentScale <= Mathf.Epsilon)
+            if (baseSize <= Mathf.Epsilon
+                || poseSize <= Mathf.Epsilon
+                || poseRootScale <= Mathf.Epsilon
+                || parentScale <= Mathf.Epsilon)
             {
                 return 0.01f;
             }
 
-            return baseSize / (poseSize * parentScale);
+            return baseSize / ((poseSize / poseRootScale) * parentScale);
         }
 
         private void SetBasePoseVisible(bool visible)
