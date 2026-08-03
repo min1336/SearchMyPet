@@ -35,7 +35,7 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
-        public void StampStroke_FillsBetweenFastPointerSamples()
+        public void StampStroke_PaintsOnlyTheCurrentBrushPoint()
         {
             var texture = new Texture2D(64, 64, TextureFormat.RGBA32, false);
             var pixels = new Color[texture.width * texture.height];
@@ -53,7 +53,8 @@ namespace SearchMyPet.AR.Tests
                 8,
                 PaintBrushTexture.Soft);
 
-            Assert.That(texture.GetPixel(32, 32).b, Is.GreaterThan(0.99f));
+            Assert.That(texture.GetPixel(32, 32), Is.EqualTo(Color.white));
+            Assert.That(texture.GetPixel(54, 32).b, Is.GreaterThan(0.99f));
             Object.DestroyImmediate(texture);
         }
 

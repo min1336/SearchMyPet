@@ -130,9 +130,6 @@ namespace SearchMyPet.AR
         private Slider brushSizeSlider;
         private Button[] editableTextureButtons;
         private bool usesEditableUi;
-        private PaintSurface lastPaintSurface;
-        private Vector2 lastPaintUv;
-        private bool hasLastPaintPoint;
         private readonly Stack<PaintHistoryEntry> undoHistory = new();
         private readonly Stack<PaintHistoryEntry> redoHistory = new();
         private PaintHistoryEntry activeHistoryEntry;
@@ -552,35 +549,16 @@ namespace SearchMyPet.AR
                 return;
             }
 
-            var startsNewSurface = !hasLastPaintPoint
-                || !ReferenceEquals(lastPaintSurface, surface)
-                || IsUvJump(lastPaintUv, hit.textureCoord);
             TrackHistorySurface(surface);
-            if (startsNewSurface)
-            {
-                PaintStamp(surface, hit.textureCoord);
-            }
-            else
-            {
-                PaintStroke(
-                    surface,
-                    lastPaintUv,
-                    hit.textureCoord);
-            }
+            PaintStamp(surface, hit.textureCoord);
 
             activeHistoryEntry.HasChanges = true;
             SetHistoryControlsVisible(true);
-            lastPaintSurface = surface;
-            lastPaintUv = hit.textureCoord;
-            hasLastPaintPoint = true;
         }
 
         private void ResetPaintStroke()
         {
             FinishPaintStroke();
-            lastPaintSurface = null;
-            lastPaintUv = default;
-            hasLastPaintPoint = false;
         }
 
         private void TrackHistorySurface(PaintSurface surface)
@@ -610,30 +588,6 @@ namespace SearchMyPet.AR
         {
             StampPixels(surface.Texture, uv, selectedColor, brushSize, brushTexture);
             surface.Texture.Apply(false);
-        }
-
-        private void PaintStroke(PaintSurface surface, Vector2 fromUv, Vector2 toUv)
-        {
-            var from = new Vector2(fromUv.x * (surface.Texture.width - 1), fromUv.y * (surface.Texture.height - 1));
-            var to = new Vector2(toUv.x * (surface.Texture.width - 1), toUv.y * (surface.Texture.height - 1));
-            var spacing = Mathf.Max(1f, brushSize * 0.35f);
-            var steps = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(from, to) / spacing));
-            for (var index = 0; index <= steps; index++)
-            {
-                StampPixels(
-                    surface.Texture,
-                    Vector2.Lerp(fromUv, toUv, index / (float)steps),
-                    selectedColor,
-                    brushSize,
-                    brushTexture);
-            }
-            surface.Texture.Apply(false);
-        }
-
-        private static bool IsUvJump(Vector2 fromUv, Vector2 toUv)
-        {
-            return Mathf.Abs(fromUv.x - toUv.x) > 0.5f
-                || Mathf.Abs(fromUv.y - toUv.y) > 0.5f;
         }
 
         private void OnCameraFrameReceived(ARCameraFrameEventArgs args)
@@ -724,22 +678,7 @@ namespace SearchMyPet.AR
                 return;
             }
 
-            if (IsUvJump(fromUv, toUv))
-            {
-                StampPixels(texture, toUv, color, size, brushTexture);
-                texture.Apply(false);
-                return;
-            }
-
-            var from = new Vector2(fromUv.x * (texture.width - 1), fromUv.y * (texture.height - 1));
-            var to = new Vector2(toUv.x * (texture.width - 1), toUv.y * (texture.height - 1));
-            var spacing = Mathf.Max(1f, size * 0.35f);
-            var steps = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(from, to) / spacing));
-            for (var index = 0; index <= steps; index++)
-            {
-                StampPixels(texture, Vector2.Lerp(fromUv, toUv, index / (float)steps), color, size, brushTexture);
-            }
-
+            StampPixels(texture, toUv, color, size, brushTexture);
             texture.Apply(false);
         }
 
