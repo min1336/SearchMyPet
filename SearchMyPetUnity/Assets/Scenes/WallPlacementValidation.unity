@@ -1052,6 +1052,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SearchMyPet.AR.PlacementReticle
   raycastManager: {fileID: 2143442027}
   planeManager: {fileID: 2143442028}
+  cameraManager: {fileID: 0}
   arCamera: {fileID: 216786674}
   environmentDepthValidator: {fileID: 388774503}
   config: {fileID: 11400000, guid: 4f5dba044f6e9664ab0c90a06418932e, type: 2}
@@ -5468,18 +5469,18 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 11
+    m_FontSize: 30
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 57
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 0.8
-  m_Text: "\u2659\n1 / 4"
+  m_Text: "\u2659"
 --- !u!114 &2392495582993751050
 MonoBehaviour:
   m_ObjectHideFlags: 0
