@@ -92,6 +92,12 @@ namespace SearchMyPet.AR
 
         public void PlaceAtCandidate()
         {
+            if (stateMachine.State == WallPlacementState.Placed)
+            {
+                Reposition();
+                return;
+            }
+
             ARPlane candidatePlane = null;
             var candidatePose = default(Pose);
             var hasCurrentCandidate = placementReticle != null
@@ -130,7 +136,7 @@ namespace SearchMyPet.AR
 
             placedCharacter = Instantiate(characterPrefab, placedAnchor.transform, false);
             placedCharacter.name = "Placed Chameleon";
-            placedCharacter.transform.localPosition = Vector3.zero;
+            placedCharacter.transform.localPosition = Vector3.down * config.CharacterHeightMeters * 0.5f;
             placedCharacter.transform.localRotation = Quaternion.identity;
             placedCharacter.transform.localScale = Vector3.one * config.CharacterHeightMeters;
             placedCharacter.SetActive(false);
@@ -351,11 +357,16 @@ namespace SearchMyPet.AR
             var hasPlacement = state == WallPlacementState.Placed;
             var painting = hasPlacement && colorPalette.IsPainting;
             var cameraActive = appTabs == null || appTabs.ActiveTab == AppTab.Camera;
+            var previewVisible = placementReticle != null && placementReticle.IsPreviewVisible;
+            var showPlacementInstruction = cameraActive
+                && (state == WallPlacementState.Scanning
+                    || (state == WallPlacementState.CandidateValid && !previewVisible));
+            colorPalette?.SetPlacementInstructionVisible(showPlacementInstruction);
             if (placeButton != null)
             {
-                placeButton.gameObject.SetActive(cameraActive && !painting);
-                placeButton.interactable = state == WallPlacementState.CandidateValid;
-                if (!painting) placeButton.transform.SetAsLastSibling();
+                placeButton.gameObject.SetActive(cameraActive);
+                placeButton.interactable = state == WallPlacementState.CandidateValid || hasPlacement;
+                placeButton.transform.SetAsLastSibling();
             }
             if (repositionButton != null)
             {

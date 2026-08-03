@@ -31,6 +31,7 @@ namespace SearchMyPet.AR
         private bool scanningActive = true;
 
         public bool HasValidCandidate { get; private set; }
+        public bool IsPreviewVisible => previewInstance != null && previewInstance.activeSelf;
         public Pose CandidatePose { get; private set; }
         public ARPlane CandidatePlane { get; private set; }
 
@@ -280,7 +281,9 @@ namespace SearchMyPet.AR
 
             if (previewInstance != null)
             {
-                previewInstance.transform.SetPositionAndRotation(pose.position, pose.rotation);
+                previewInstance.transform.SetPositionAndRotation(
+                    pose.position - pose.rotation * Vector3.up * config.CharacterHeightMeters * 0.5f,
+                    pose.rotation);
                 previewInstance.transform.localScale = Vector3.one * config.CharacterHeightMeters;
                 previewInstance.SetActive(true);
             }

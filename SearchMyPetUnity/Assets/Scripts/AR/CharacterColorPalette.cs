@@ -1,8 +1,11 @@
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
 
 namespace SearchMyPet.AR
 {
@@ -21,6 +24,61 @@ namespace SearchMyPet.AR
             public Collider Collider;
             public Material Material;
             public Texture2D Texture;
+        }
+
+        private sealed class PaintSnapshot
+        {
+            public PaintSurface Surface;
+            public Color32[] Before;
+            public Color32[] After;
+        }
+
+        private sealed class PaintHistoryEntry
+        {
+            public readonly List<PaintSnapshot> Snapshots = new();
+            public bool HasChanges;
+
+            public PaintSnapshot GetOrAdd(PaintSurface surface)
+            {
+                foreach (var snapshot in Snapshots)
+                {
+                    if (ReferenceEquals(snapshot.Surface, surface))
+                    {
+                        return snapshot;
+                    }
+                }
+
+                var created = new PaintSnapshot
+                {
+                    Surface = surface,
+                    Before = surface.Texture.GetPixels32()
+                };
+                Snapshots.Add(created);
+                return created;
+            }
+
+            public void CaptureAfter()
+            {
+                foreach (var snapshot in Snapshots)
+                {
+                    snapshot.After = snapshot.Surface.Texture.GetPixels32();
+                }
+            }
+
+            public void Apply(bool undo)
+            {
+                foreach (var snapshot in Snapshots)
+                {
+                    var pixels = undo ? snapshot.Before : snapshot.After;
+                    if (snapshot.Surface?.Texture == null || pixels == null)
+                    {
+                        continue;
+                    }
+
+                    snapshot.Surface.Texture.SetPixels32(pixels);
+                    snapshot.Surface.Texture.Apply(false);
+                }
+            }
         }
 
         private enum Tool
@@ -50,8 +108,13 @@ namespace SearchMyPet.AR
         private GameObject quickControls;
         private GameObject toolbar;
         private GameObject topBar;
+        private GameObject historyControls;
         private GameObject cameraLensSelector;
         private GameObject placementInstructionPanel;
+        private Button undoButton;
+        private Button redoButton;
+        private ARCameraManager arCameraManager;
+        private Matrix4x4? cameraDisplayMatrix;
         private AppTabController appTabs;
         private bool cameraLensWasVisible;
         private Font font;
@@ -64,12 +127,20 @@ namespace SearchMyPet.AR
         private Sprite roundedSprite;
         private Sprite circleSprite;
         private GameObject[] editableToolPanels;
-        private Button[] editableSizeButtons;
+        private Slider brushSizeSlider;
         private Button[] editableTextureButtons;
         private bool usesEditableUi;
+        private PaintSurface lastPaintSurface;
+        private Vector2 lastPaintUv;
+        private bool hasLastPaintPoint;
+        private readonly Stack<PaintHistoryEntry> undoHistory = new();
+        private readonly Stack<PaintHistoryEntry> redoHistory = new();
+        private PaintHistoryEntry activeHistoryEntry;
 
         public bool IsPainting { get; private set; }
         public bool ToolsOpen { get; private set; }
+        public bool CanUndo => undoHistory.Count > 0;
+        public bool CanRedo => redoHistory.Count > 0;
 
         public void Initialize(Transform canvas)
         {
@@ -81,18 +152,22 @@ namespace SearchMyPet.AR
             font = canvas.GetComponentInChildren<Text>(true)?.font
                 ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             cameraLensSelector = GameObject.Find("Camera Lens Selector");
-            placementInstructionPanel = GameObject.Find("Placement Instruction Panel");
+            placementInstructionPanel = canvas.Find("Placement Instruction Panel")?.gameObject
+                ?? GameObject.Find("Placement Instruction Panel");
             placementInstructionPanel?.SetActive(true);
+            arCameraManager = FindAnyObjectByType<ARCameraManager>();
+            if (arCameraManager != null)
+            {
+                arCameraManager.frameReceived += OnCameraFrameReceived;
+            }
+
+            roundedSprite ??= CreateShapeSprite(false);
+            circleSprite ??= CreateShapeSprite(true);
 
             var editableRoot = canvas.Find("SearchMyPetAppUI/Character Paint UI")
                 ?? canvas.Find("Character Paint UI");
             if (editableRoot != null)
             {
-                var appRoot = editableRoot.parent as RectTransform;
-                if (appRoot != null && appRoot.name == "SearchMyPetAppUI")
-                {
-                    Stretch(appRoot);
-                }
                 paintUi = editableRoot.gameObject;
                 BindEditableUi();
             }
@@ -111,6 +186,7 @@ namespace SearchMyPet.AR
                 CreateToolbar(safeArea.transform);
                 contextPanel = CreatePanel(safeArea.transform, "Paint Tool Options", new Vector2(0f, 158f), new Vector2(720f, 112f));
                 CreateQuickBar(safeArea.transform);
+                CreateHistoryControls(safeArea.transform);
             }
             ShowTool(Tool.Brush);
             CloseToolMenu();
@@ -127,14 +203,20 @@ namespace SearchMyPet.AR
             topBar = safeArea.Find("Paint Top Bar")?.gameObject;
 
             BindQuickControls(safeArea);
+            BindHistoryControls(safeArea);
 
             var done = safeArea.Find("Paint Top Bar/완료")?.GetComponent<Button>();
             done?.onClick.AddListener(NavigateBack);
 
             var toolbarTransform = safeArea.Find("Paint Toolbar");
-            var toolNames = new[] { "붓", "크기", "질감", "팔레트", "스포이드" };
+            var toolNames = new[] { "붓", string.Empty, "질감", "팔레트", "스포이드" };
             for (var index = 0; index < toolNames.Length; index++)
             {
+                if (string.IsNullOrEmpty(toolNames[index]))
+                {
+                    continue;
+                }
+
                 var tool = (Tool)index;
                 var button = toolbarTransform.Find(toolNames[index])?.GetComponent<Button>();
                 if (button == null)
@@ -148,20 +230,17 @@ namespace SearchMyPet.AR
                 toolLabels[index] = button.GetComponentInChildren<Text>();
             }
 
+            var brushOptions = contextPanel.transform.Find("Brush Options")?.gameObject;
             editableToolPanels = new[]
             {
-                contextPanel.transform.Find("Brush Options")?.gameObject,
-                contextPanel.transform.Find("Size Options")?.gameObject,
+                brushOptions,
+                null,
                 contextPanel.transform.Find("Texture Options")?.gameObject,
                 contextPanel.transform.Find("Palette Options")?.gameObject,
                 contextPanel.transform.Find("Eyedropper Options")?.gameObject
             };
 
-            editableSizeButtons = BindOptionButtons("Size Options", new[] { "8", "16", "32", "48" }, (index) =>
-            {
-                brushSize = new[] { 8, 16, 32, 48 }[index];
-                ShowTool(Tool.Size);
-            });
+            BindBrushSizeSlider(brushOptions?.transform);
             editableTextureButtons = BindOptionButtons("Texture Options", new[] { "부드러움", "거침", "점무늬" }, (index) =>
             {
                 brushTexture = (PaintBrushTexture)index;
@@ -188,6 +267,33 @@ namespace SearchMyPet.AR
                 hue.onValueChanged.AddListener(UpdateColor);
                 value.onValueChanged.AddListener(UpdateColor);
             }
+        }
+
+        private void BindBrushSizeSlider(Transform parent)
+        {
+            brushSizeSlider = parent?.Find("Brush Size Slider")?.GetComponent<Slider>();
+            if (brushSizeSlider == null)
+            {
+                Debug.LogError("CharacterColorPalette requires a scene Brush Size Slider under Brush Options.");
+                return;
+            }
+
+            ConfigureBrushSizeSlider(brushSizeSlider);
+        }
+
+        private void ConfigureBrushSizeSlider(Slider slider)
+        {
+            slider.minValue = 8f;
+            slider.maxValue = 48f;
+            slider.wholeNumbers = true;
+            slider.SetValueWithoutNotify(brushSize);
+            slider.onValueChanged.RemoveListener(OnBrushSizeChanged);
+            slider.onValueChanged.AddListener(OnBrushSizeChanged);
+        }
+
+        private void OnBrushSizeChanged(float value)
+        {
+            brushSize = Mathf.Clamp(Mathf.RoundToInt(value), 8, 48);
         }
 
         private Button[] BindOptionButtons(string panelName, string[] names, System.Action<int> action)
@@ -237,14 +343,25 @@ namespace SearchMyPet.AR
                     continue;
                 }
 
-                var meshFilter = renderer.GetComponent<MeshFilter>();
-                if (meshFilter == null || meshFilter.sharedMesh == null)
+                var mesh = renderer.GetComponent<MeshFilter>()?.sharedMesh;
+                if (mesh == null && renderer is SkinnedMeshRenderer skinnedRenderer)
+                {
+                    mesh = skinnedRenderer.sharedMesh;
+                }
+
+                if (mesh == null)
                 {
                     continue;
                 }
 
                 var material = new Material(renderer.sharedMaterial) { name = $"{renderer.name} Paint" };
-                var texture = CreatePaintTexture();
+                var baseTexture = material.HasProperty("_BaseMap")
+                    ? material.GetTexture("_BaseMap") as Texture2D
+                    : material.mainTexture as Texture2D;
+                var baseColor = material.HasProperty("_BaseColor")
+                    ? material.GetColor("_BaseColor")
+                    : material.color;
+                var texture = CreatePaintTexture(baseTexture, baseColor);
                 if (material.HasProperty("_BaseMap"))
                 {
                     material.SetTexture("_BaseMap", texture);
@@ -258,7 +375,7 @@ namespace SearchMyPet.AR
 
                 renderer.sharedMaterial = material;
                 var collider = renderer.gameObject.AddComponent<MeshCollider>();
-                ((MeshCollider)collider).sharedMesh = meshFilter.sharedMesh;
+                ((MeshCollider)collider).sharedMesh = mesh;
                 surfaces.Add(collider, new PaintSurface
                 {
                     Renderer = renderer,
@@ -282,6 +399,33 @@ namespace SearchMyPet.AR
             button?.onClick.RemoveListener(ToggleToolMenu);
             button?.onClick.AddListener(ToggleToolMenu);
             quickColorSwatch = quickControls?.transform.Find("Color Palette Button/Selected Color")?.GetComponent<Image>();
+        }
+
+        private void BindHistoryControls(Transform safeArea)
+        {
+            var history = safeArea?.Find("Paint History Controls");
+            if (history == null)
+            {
+                Debug.LogError("CharacterColorPalette requires scene Paint History Controls.");
+                historyControls = null;
+                return;
+            }
+
+            historyControls = history?.gameObject;
+            undoButton = history?.Find("Undo Button")?.GetComponent<Button>();
+            redoButton = history?.Find("Redo Button")?.GetComponent<Button>();
+            if (undoButton != null)
+            {
+                undoButton.onClick.RemoveListener(Undo);
+                undoButton.onClick.AddListener(Undo);
+            }
+            if (redoButton != null)
+            {
+                redoButton.onClick.RemoveListener(Redo);
+                redoButton.onClick.AddListener(Redo);
+            }
+            SetHistoryControlsVisible(false);
+            UpdateHistoryUi();
         }
 
         public void ToggleToolMenu()
@@ -315,10 +459,37 @@ namespace SearchMyPet.AR
             contextPanel?.SetActive(false);
         }
 
+        public void Undo()
+        {
+            ResetPaintStroke();
+            if (!undoHistory.TryPop(out var entry))
+            {
+                return;
+            }
+
+            entry.Apply(true);
+            redoHistory.Push(entry);
+            UpdateHistoryUi();
+        }
+
+        public void Redo()
+        {
+            ResetPaintStroke();
+            if (!redoHistory.TryPop(out var entry))
+            {
+                return;
+            }
+
+            entry.Apply(false);
+            undoHistory.Push(entry);
+            UpdateHistoryUi();
+        }
+
         public void NavigateBack()
         {
             IsPainting = false;
             ToolsOpen = false;
+            SetHistoryControlsVisible(false);
             paintUi?.SetActive(false);
             SetCameraUiVisible(false);
             appTabs ??= FindAnyObjectByType<AppTabController>();
@@ -329,8 +500,14 @@ namespace SearchMyPet.AR
         {
             IsPainting = false;
             ToolsOpen = false;
+            SetHistoryControlsVisible(false);
             paintUi?.SetActive(false);
             SetCameraUiVisible(true);
+        }
+
+        public void SetPlacementInstructionVisible(bool visible)
+        {
+            placementInstructionPanel?.SetActive(visible && !IsPainting);
         }
 
         private void Update()
@@ -338,26 +515,184 @@ namespace SearchMyPet.AR
             var pointer = Pointer.current;
             if (!IsPainting || !ToolsOpen || pointer == null || !pointer.press.isPressed || Camera.main == null)
             {
+                ResetPaintStroke();
                 return;
             }
 
             var screenPosition = pointer.position.ReadValue();
-            if (IsOverUi(screenPosition)
-                || !Physics.Raycast(Camera.main.ScreenPointToRay(screenPosition), out var hit)
-                || !surfaces.TryGetValue(hit.collider, out var surface))
+            if (IsOverUi(screenPosition))
             {
+                ResetPaintStroke();
                 return;
             }
 
+            var surface = default(PaintSurface);
+            var hitPaintSurface = Physics.Raycast(Camera.main.ScreenPointToRay(screenPosition), out var hit)
+                && surfaces.TryGetValue(hit.collider, out surface);
             if (activeTool == Tool.Eyedropper)
             {
-                selectedColor = surface.Texture.GetPixelBilinear(hit.textureCoord.x, hit.textureCoord.y);
+                ResetPaintStroke();
+                if (hitPaintSurface)
+                {
+                    selectedColor = surface.Texture.GetPixelBilinear(hit.textureCoord.x, hit.textureCoord.y);
+                }
+                else if (!TrySampleCamera(screenPosition, out selectedColor))
+                {
+                    return;
+                }
+
                 UpdateSwatch();
                 ShowTool(Tool.Brush);
                 return;
             }
 
-            Stamp(surface.Texture, hit.textureCoord, selectedColor, brushSize, brushTexture);
+            if (!hitPaintSurface)
+            {
+                ResetPaintStroke();
+                return;
+            }
+
+            var startsNewSurface = !hasLastPaintPoint
+                || !ReferenceEquals(lastPaintSurface, surface)
+                || IsUvJump(lastPaintUv, hit.textureCoord);
+            TrackHistorySurface(surface);
+            if (startsNewSurface)
+            {
+                PaintStamp(surface, hit.textureCoord);
+            }
+            else
+            {
+                PaintStroke(
+                    surface,
+                    lastPaintUv,
+                    hit.textureCoord);
+            }
+
+            activeHistoryEntry.HasChanges = true;
+            SetHistoryControlsVisible(true);
+            lastPaintSurface = surface;
+            lastPaintUv = hit.textureCoord;
+            hasLastPaintPoint = true;
+        }
+
+        private void ResetPaintStroke()
+        {
+            FinishPaintStroke();
+            lastPaintSurface = null;
+            lastPaintUv = default;
+            hasLastPaintPoint = false;
+        }
+
+        private void TrackHistorySurface(PaintSurface surface)
+        {
+            activeHistoryEntry ??= new PaintHistoryEntry();
+            activeHistoryEntry.GetOrAdd(surface);
+        }
+
+        private void FinishPaintStroke()
+        {
+            if (activeHistoryEntry == null)
+            {
+                return;
+            }
+
+            activeHistoryEntry.CaptureAfter();
+            if (activeHistoryEntry.HasChanges)
+            {
+                undoHistory.Push(activeHistoryEntry);
+                redoHistory.Clear();
+            }
+            activeHistoryEntry = null;
+            UpdateHistoryUi();
+        }
+
+        private void PaintStamp(PaintSurface surface, Vector2 uv)
+        {
+            StampPixels(surface.Texture, uv, selectedColor, brushSize, brushTexture);
+            surface.Texture.Apply(false);
+        }
+
+        private void PaintStroke(PaintSurface surface, Vector2 fromUv, Vector2 toUv)
+        {
+            var from = new Vector2(fromUv.x * (surface.Texture.width - 1), fromUv.y * (surface.Texture.height - 1));
+            var to = new Vector2(toUv.x * (surface.Texture.width - 1), toUv.y * (surface.Texture.height - 1));
+            var spacing = Mathf.Max(1f, brushSize * 0.35f);
+            var steps = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(from, to) / spacing));
+            for (var index = 0; index <= steps; index++)
+            {
+                StampPixels(
+                    surface.Texture,
+                    Vector2.Lerp(fromUv, toUv, index / (float)steps),
+                    selectedColor,
+                    brushSize,
+                    brushTexture);
+            }
+            surface.Texture.Apply(false);
+        }
+
+        private static bool IsUvJump(Vector2 fromUv, Vector2 toUv)
+        {
+            return Mathf.Abs(fromUv.x - toUv.x) > 0.5f
+                || Mathf.Abs(fromUv.y - toUv.y) > 0.5f;
+        }
+
+        private void OnCameraFrameReceived(ARCameraFrameEventArgs args)
+        {
+            if (args.displayMatrix.HasValue)
+            {
+                cameraDisplayMatrix = args.displayMatrix.Value;
+            }
+        }
+
+        private bool TrySampleCamera(Vector2 screenPosition, out Color color)
+        {
+            color = default;
+            if (arCameraManager == null
+                || !cameraDisplayMatrix.HasValue
+                || !arCameraManager.TryAcquireLatestCpuImage(out var image))
+            {
+                return false;
+            }
+
+            using (image)
+            {
+                if (!image.FormatSupported(TextureFormat.RGBA32))
+                {
+                    return false;
+                }
+
+                var uv = ScreenToCameraUv(
+                    screenPosition,
+                    new Vector2(Screen.width, Screen.height),
+                    cameraDisplayMatrix.Value);
+                var x = Mathf.Clamp(Mathf.FloorToInt(uv.x * image.width), 0, image.width - 1);
+                var y = Mathf.Clamp(Mathf.FloorToInt(uv.y * image.height), 0, image.height - 1);
+                var conversion = new XRCpuImage.ConversionParams
+                {
+                    inputRect = new RectInt(x, y, 1, 1),
+                    outputDimensions = Vector2Int.one,
+                    outputFormat = TextureFormat.RGBA32,
+                    transformation = XRCpuImage.Transformation.None
+                };
+                using var pixel = new NativeArray<byte>(4, Allocator.Temp);
+                image.Convert(conversion, new NativeSlice<byte>(pixel));
+                color = new Color32(pixel[0], pixel[1], pixel[2], pixel[3]);
+                return true;
+            }
+        }
+
+        private static Vector2 ScreenToCameraUv(
+            Vector2 screenPosition,
+            Vector2 screenSize,
+            Matrix4x4 displayMatrix)
+        {
+            var screenUv = new Vector4(
+                screenPosition.x / screenSize.x,
+                screenPosition.y / screenSize.y,
+                1f,
+                1f);
+            var cameraUv = displayMatrix.transpose * screenUv;
+            return new Vector2(cameraUv.x, cameraUv.y);
         }
 
         public static void Stamp(
@@ -372,6 +707,49 @@ namespace SearchMyPet.AR
                 return;
             }
 
+            StampPixels(texture, uv, color, size, brushTexture);
+            texture.Apply(false);
+        }
+
+        public static void StampStroke(
+            Texture2D texture,
+            Vector2 fromUv,
+            Vector2 toUv,
+            Color color,
+            int size,
+            PaintBrushTexture brushTexture)
+        {
+            if (texture == null || size <= 0)
+            {
+                return;
+            }
+
+            if (IsUvJump(fromUv, toUv))
+            {
+                StampPixels(texture, toUv, color, size, brushTexture);
+                texture.Apply(false);
+                return;
+            }
+
+            var from = new Vector2(fromUv.x * (texture.width - 1), fromUv.y * (texture.height - 1));
+            var to = new Vector2(toUv.x * (texture.width - 1), toUv.y * (texture.height - 1));
+            var spacing = Mathf.Max(1f, size * 0.35f);
+            var steps = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(from, to) / spacing));
+            for (var index = 0; index <= steps; index++)
+            {
+                StampPixels(texture, Vector2.Lerp(fromUv, toUv, index / (float)steps), color, size, brushTexture);
+            }
+
+            texture.Apply(false);
+        }
+
+        private static void StampPixels(
+            Texture2D texture,
+            Vector2 uv,
+            Color color,
+            int size,
+            PaintBrushTexture brushTexture)
+        {
             var centerX = Mathf.RoundToInt(uv.x * (texture.width - 1));
             var centerY = Mathf.RoundToInt(uv.y * (texture.height - 1));
             var radius = Mathf.Max(1, size / 2);
@@ -385,25 +763,43 @@ namespace SearchMyPet.AR
                         continue;
                     }
 
-                    var strength = BrushStrength(x, y, distance, radius, brushTexture);
+                    var strength = BrushStrength(x - centerX, y - centerY, radius, brushTexture);
                     if (strength > 0f)
                     {
                         texture.SetPixel(x, y, Color.Lerp(texture.GetPixel(x, y), color, strength));
                     }
                 }
             }
-
-            texture.Apply(false);
         }
 
-        private static float BrushStrength(int x, int y, float distance, int radius, PaintBrushTexture brushTexture)
+        private static float BrushStrength(int offsetX, int offsetY, int radius, PaintBrushTexture brushTexture)
         {
+            var normalizedX = offsetX / (float)radius;
+            var normalizedY = offsetY / (float)radius;
+            var distance = Mathf.Sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+            var edge = Mathf.Clamp01(1f - distance);
+            if (edge <= 0f)
+            {
+                return 0f;
+            }
+
             return brushTexture switch
             {
-                PaintBrushTexture.Rough => ((x * 73856093) ^ (y * 19349663)) % 5 == 0 ? 0.25f : 0.9f,
-                PaintBrushTexture.Dots => (x / Mathf.Max(2, radius / 3) + y / Mathf.Max(2, radius / 3)) % 2 == 0 ? 1f : 0f,
-                _ => Mathf.Clamp01(1f - distance / radius)
+                PaintBrushTexture.Rough => edge * Mathf.Lerp(
+                    0.35f,
+                    1f,
+                    Mathf.Abs(Mathf.Sin((offsetX * 12.9898f + offsetY * 78.233f) * 0.17f))),
+                PaintBrushTexture.Dots => edge * DotAlpha(normalizedX, normalizedY),
+                _ => edge
             };
+        }
+
+        private static float DotAlpha(float x, float y)
+        {
+            const float grid = 3.5f;
+            var cellX = Mathf.Repeat((x + 1f) * grid, 1f) - 0.5f;
+            var cellY = Mathf.Repeat((y + 1f) * grid, 1f) - 0.5f;
+            return Mathf.Clamp01(1f - Mathf.Sqrt(cellX * cellX + cellY * cellY) / 0.34f);
         }
 
         private void ShowTool(Tool tool)
@@ -415,13 +811,14 @@ namespace SearchMyPet.AR
                 return;
             }
 
-            contextPanel.SetActive(ToolsOpen && tool != Tool.Brush && tool != Tool.Eyedropper);
+            contextPanel.SetActive(ToolsOpen && tool != Tool.Eyedropper);
 
             if (usesEditableUi)
             {
+                var panelTool = tool == Tool.Size ? Tool.Brush : tool;
                 for (var index = 0; index < editableToolPanels.Length; index++)
                 {
-                    editableToolPanels[index]?.SetActive(index == (int)tool);
+                    editableToolPanels[index]?.SetActive(index == (int)panelTool);
                 }
                 UpdateEditableOptionSelection();
                 return;
@@ -431,10 +828,8 @@ namespace SearchMyPet.AR
             switch (tool)
             {
                 case Tool.Brush:
-                    CreateCenteredText(contextPanel.transform, "캐릭터를 문질러 색칠하세요", 24, Neon);
-                    break;
                 case Tool.Size:
-                    CreateSizeOptions(contextPanel.transform);
+                    CreateBrushSizeOptions(contextPanel.transform);
                     break;
                 case Tool.Texture:
                     CreateTextureOptions(contextPanel.transform);
@@ -450,14 +845,7 @@ namespace SearchMyPet.AR
 
         private void UpdateEditableOptionSelection()
         {
-            if (editableSizeButtons != null)
-            {
-                var sizes = new[] { 8, 16, 32, 48 };
-                for (var index = 0; index < editableSizeButtons.Length; index++)
-                {
-                    SetOptionSelected(editableSizeButtons[index], sizes[index] == brushSize);
-                }
-            }
+            brushSizeSlider?.SetValueWithoutNotify(brushSize);
             if (editableTextureButtons != null)
             {
                 for (var index = 0; index < editableTextureButtons.Length; index++)
@@ -496,18 +884,81 @@ namespace SearchMyPet.AR
             SetRect((RectTransform)done.transform, new Vector2(16f, -10f), new Vector2(40f, 40f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
         }
 
+        private void CreateHistoryControls(Transform parent)
+        {
+            if (parent == null || parent.Find("Paint History Controls") != null)
+            {
+                return;
+            }
+
+            var root = new GameObject("Paint History Controls", typeof(RectTransform));
+            root.transform.SetParent(parent, false);
+            historyControls = root;
+            var rootRect = (RectTransform)root.transform;
+            SetRect(rootRect, new Vector2(12f, -137f), new Vector2(44f, 88f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+            rootRect.anchoredPosition3D = new Vector3(12f, -137f, 0f);
+
+            var undo = CreateButton(root.transform, "Undo Button", Card, Color.white, Undo);
+            undo.GetComponentInChildren<Text>().text = "↶";
+            var undoImage = undo.GetComponent<Image>();
+            undoImage.sprite = circleSprite;
+            undoImage.type = Image.Type.Simple;
+            SetRect((RectTransform)undo.transform, new Vector2(2f, -2f), new Vector2(40f, 40f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+
+            var redo = CreateButton(root.transform, "Redo Button", Card, Color.white, Redo);
+            redo.GetComponentInChildren<Text>().text = "↷";
+            var redoImage = redo.GetComponent<Image>();
+            redoImage.sprite = circleSprite;
+            redoImage.type = Image.Type.Simple;
+            SetRect((RectTransform)redo.transform, new Vector2(2f, -46f), new Vector2(40f, 40f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+
+            undoButton = undo;
+            redoButton = redo;
+            root.transform.SetAsLastSibling();
+            SetHistoryControlsVisible(false);
+            UpdateHistoryUi();
+        }
+
+        private void SetHistoryControlsVisible(bool visible)
+        {
+            historyControls?.SetActive(visible && IsPainting);
+        }
+
+        private void UpdateHistoryUi()
+        {
+            SetHistoryButtonState(undoButton, CanUndo);
+            SetHistoryButtonState(redoButton, CanRedo);
+        }
+
+        private static void SetHistoryButtonState(Button button, bool enabled)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.interactable = enabled;
+            var label = button.GetComponentInChildren<Text>();
+            if (label != null)
+            {
+                label.color = enabled ? Color.white : Muted;
+            }
+        }
+
         private void CreateToolbar(Transform parent)
         {
             var bar = CreatePanel(parent, "Paint Toolbar", new Vector2(0f, 48f), new Vector2(720f, 84f));
             toolbar = bar;
-            var labels = new[] { "붓", "크기", "질감", "팔레트", "스포이드" };
+            var labels = new[] { "붓", "질감", "팔레트", "스포이드" };
+            var tools = new[] { Tool.Brush, Tool.Texture, Tool.Palette, Tool.Eyedropper };
             for (var index = 0; index < labels.Length; index++)
             {
-                var tool = (Tool)index;
+                var tool = tools[index];
+                var toolIndex = (int)tool;
                 var button = CreateButton(bar.transform, labels[index], Card, Color.white, () => ShowTool(tool));
-                toolBackgrounds[index] = button.GetComponent<Image>();
-                toolLabels[index] = button.GetComponentInChildren<Text>();
-                SetRect((RectTransform)button.transform, new Vector2(12f + index * 141f, 12f), new Vector2(132f, 60f), Vector2.zero, Vector2.zero, Vector2.zero);
+                toolBackgrounds[toolIndex] = button.GetComponent<Image>();
+                toolLabels[toolIndex] = button.GetComponentInChildren<Text>();
+                SetRect((RectTransform)button.transform, new Vector2(12f + index * 186f, 12f), new Vector2(132f, 60f), Vector2.zero, Vector2.zero, Vector2.zero);
             }
             UpdateToolSelection();
         }
@@ -553,26 +1004,13 @@ namespace SearchMyPet.AR
             }
         }
 
-        private void CreateSizeOptions(Transform parent)
+        private void CreateBrushSizeOptions(Transform parent)
         {
-            var sizes = new[] { 8, 16, 32, 48 };
-            for (var index = 0; index < sizes.Length; index++)
-            {
-                var size = sizes[index];
-                var selected = size == brushSize;
-                var button = CreateButton(parent, size.ToString(), selected ? Neon : Card, selected ? Color.black : Color.white, () =>
-                {
-                    brushSize = size;
-                    ShowTool(Tool.Size);
-                });
-                SetRect((RectTransform)button.transform, new Vector2(24f + index * 174f, 16f), new Vector2(150f, 80f), Vector2.zero, Vector2.zero, Vector2.zero);
-                var dot = CreateImage(button.transform, "Brush Preview", selected ? Color.black : Color.white);
-                dot.sprite = circleSprite;
-                var diameter = Mathf.Lerp(8f, 34f, size / 48f);
-                SetRect(dot.rectTransform, new Vector2(0f, 12f), new Vector2(diameter, diameter), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-                var label = button.GetComponentInChildren<Text>();
-                SetRect(label.rectTransform, new Vector2(0f, -23f), new Vector2(150f, 28f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            }
+            var label = CreateText(parent, "붓 크기", 18, Color.white);
+            SetRect(label.rectTransform, new Vector2(24f, 72f), new Vector2(160f, 24f), Vector2.zero, Vector2.zero);
+            brushSizeSlider = CreateSlider(parent, "Brush Size Slider", new Vector2(70f, 34f), CreateValueSprite(), Neon);
+            SetRect(brushSizeSlider.GetComponent<RectTransform>(), new Vector2(70f, 34f), new Vector2(580f, 28f), Vector2.zero, Vector2.zero);
+            ConfigureBrushSizeSlider(brushSizeSlider);
         }
 
         private void CreateTextureOptions(Transform parent)
@@ -662,7 +1100,7 @@ namespace SearchMyPet.AR
             return sprite;
         }
 
-        private Texture2D CreatePaintTexture()
+        private Texture2D CreatePaintTexture(Texture2D source, Color baseColor)
         {
             var texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false)
             {
@@ -672,7 +1110,20 @@ namespace SearchMyPet.AR
             var pixels = new Color32[TextureSize * TextureSize];
             for (var index = 0; index < pixels.Length; index++)
             {
-                pixels[index] = new Color32(255, 255, 255, 255);
+                pixels[index] = baseColor;
+            }
+
+            if (source != null && source.isReadable)
+            {
+                for (var y = 0; y < TextureSize; y++)
+                {
+                    var v = y / (TextureSize - 1f);
+                    for (var x = 0; x < TextureSize; x++)
+                    {
+                        var u = x / (TextureSize - 1f);
+                        pixels[y * TextureSize + x] = source.GetPixelBilinear(u, v) * baseColor;
+                    }
+                }
             }
             texture.SetPixels32(pixels);
             texture.Apply(false);
@@ -720,6 +1171,10 @@ namespace SearchMyPet.AR
 
         private void OnDestroy()
         {
+            if (arCameraManager != null)
+            {
+                arCameraManager.frameReceived -= OnCameraFrameReceived;
+            }
             ClearPaintTarget();
             foreach (var asset in uiAssets)
             {
@@ -729,6 +1184,11 @@ namespace SearchMyPet.AR
 
         private void ClearPaintTarget()
         {
+            ResetPaintStroke();
+            undoHistory.Clear();
+            redoHistory.Clear();
+            SetHistoryControlsVisible(false);
+            UpdateHistoryUi();
             foreach (var surface in surfaces.Values)
             {
                 DestroyObject(surface.Collider);

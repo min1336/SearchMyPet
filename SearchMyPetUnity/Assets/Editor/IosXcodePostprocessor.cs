@@ -1,4 +1,3 @@
-#if UNITY_IOS
 using System;
 using System.IO;
 using UnityEditor;
@@ -104,4 +103,3 @@ namespace SearchMyPet.Editor
         }
     }
 }
-#endif

@@ -35,6 +35,52 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
+        public void StampStroke_FillsBetweenFastPointerSamples()
+        {
+            var texture = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            var pixels = new Color[texture.width * texture.height];
+            for (var index = 0; index < pixels.Length; index++)
+            {
+                pixels[index] = Color.white;
+            }
+            texture.SetPixels(pixels);
+
+            CharacterColorPalette.StampStroke(
+                texture,
+                new Vector2(0.15f, 0.5f),
+                new Vector2(0.85f, 0.5f),
+                Color.blue,
+                8,
+                PaintBrushTexture.Soft);
+
+            Assert.That(texture.GetPixel(32, 32).b, Is.GreaterThan(0.99f));
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void ScreenToCameraUv_AppliesDisplayRotationAndCrop()
+        {
+            var displayMatrix = Matrix4x4.identity;
+            displayMatrix.m00 = 0f;
+            displayMatrix.m10 = 0.5f;
+            displayMatrix.m30 = 0.25f;
+            displayMatrix.m01 = -1f;
+            displayMatrix.m11 = 0f;
+            displayMatrix.m31 = 1f;
+            var method = typeof(CharacterColorPalette).GetMethod(
+                "ScreenToCameraUv",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null);
+            var uv = (Vector2)method.Invoke(
+                null,
+                new object[] { new Vector2(300f, 200f), new Vector2(400f, 400f), displayMatrix });
+
+            Assert.That(uv.x, Is.EqualTo(0.5f).Within(0.0001f));
+            Assert.That(uv.y, Is.EqualTo(0.25f).Within(0.0001f));
+        }
+
+        [Test]
         public void PaintingMode_ProtectsEyesAndCompletesBackToAr()
         {
             var root = new GameObject("Character");
@@ -69,7 +115,7 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
-        public void PaintUi_UsesSafeAreaAndUpdatesSelectedTool()
+        public void PaintUi_UsesSafeAreaAndBrushSlider()
         {
             var paletteObject = new GameObject("Palette");
             var canvasObject = new GameObject("Canvas", typeof(Canvas));
@@ -80,15 +126,44 @@ namespace SearchMyPet.AR.Tests
                 var safeArea = canvasObject.transform.Find("Character Paint UI/Safe Area");
                 var toolbar = safeArea.Find("Paint Toolbar");
                 var brush = toolbar.Find("붓").GetComponent<Image>();
-                var size = toolbar.Find("크기").GetComponent<Image>();
+                var slider = safeArea.Find("Paint Tool Options/Brush Size Slider").GetComponent<Slider>();
 
                 Assert.That(safeArea, Is.Not.Null);
-                Assert.That(toolbar.childCount, Is.EqualTo(5));
+                Assert.That(toolbar.childCount, Is.EqualTo(4));
+                Assert.That(toolbar.Find("크기"), Is.Null);
                 Assert.That(brush.color.a, Is.EqualTo(1f));
 
-                toolbar.Find("크기").GetComponent<Button>().onClick.Invoke();
-                Assert.That(size.color.a, Is.EqualTo(1f));
-                Assert.That(brush.color.a, Is.EqualTo(0f));
+                palette.OpenToolMenu();
+                slider = safeArea.Find("Paint Tool Options/Brush Size Slider").GetComponent<Slider>();
+                Assert.That(slider.gameObject.activeSelf, Is.True);
+                slider.value = 48f;
+                Assert.That(slider.value, Is.EqualTo(48f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(paletteObject);
+                Object.DestroyImmediate(canvasObject);
+            }
+        }
+
+        [Test]
+        public void Initialize_ShowsInactivePlacementInstructionPanel()
+        {
+            var paletteObject = new GameObject("Palette");
+            var canvasObject = new GameObject("Canvas", typeof(Canvas));
+            var instructionPanel = new GameObject("Placement Instruction Panel");
+            instructionPanel.transform.SetParent(canvasObject.transform, false);
+            instructionPanel.SetActive(false);
+            try
+            {
+                var palette = paletteObject.AddComponent<CharacterColorPalette>();
+                palette.Initialize(canvasObject.transform);
+
+                Assert.That(instructionPanel.activeSelf, Is.True);
+                palette.SetPlacementInstructionVisible(false);
+                Assert.That(instructionPanel.activeSelf, Is.False);
+                palette.SetPlacementInstructionVisible(true);
+                Assert.That(instructionPanel.activeSelf, Is.True);
             }
             finally
             {
@@ -124,6 +199,58 @@ namespace SearchMyPet.AR.Tests
                 Object.DestroyImmediate(paletteObject);
                 Object.DestroyImmediate(canvasObject);
             }
+        }
+
+        [Test]
+        public void HistoryUi_IsVerticalAndStartsDisabled()
+        {
+            var paletteObject = new GameObject("Palette");
+            var canvasObject = new GameObject("Canvas", typeof(Canvas));
+            try
+            {
+                var palette = paletteObject.AddComponent<CharacterColorPalette>();
+                palette.Initialize(canvasObject.transform);
+
+                var history = canvasObject.transform.Find("Character Paint UI/Safe Area/Paint History Controls");
+                Assert.That(history, Is.Not.Null);
+                Assert.That(history.gameObject.activeSelf, Is.False);
+                Assert.That(history.Find("Undo Button").GetComponent<Button>().interactable, Is.False);
+                Assert.That(history.Find("Redo Button").GetComponent<Button>().interactable, Is.False);
+
+                var undo = (RectTransform)history.Find("Undo Button");
+                var redo = (RectTransform)history.Find("Redo Button");
+                Assert.That(undo.anchoredPosition.y, Is.GreaterThan(redo.anchoredPosition.y));
+                Assert.That(palette.CanUndo, Is.False);
+                Assert.That(palette.CanRedo, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(paletteObject);
+                Object.DestroyImmediate(canvasObject);
+            }
+        }
+
+        [Test]
+        public void StampStroke_DoesNotBridgeUvSeams()
+        {
+            var texture = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            var pixels = new Color[texture.width * texture.height];
+            for (var index = 0; index < pixels.Length; index++)
+            {
+                pixels[index] = Color.white;
+            }
+            texture.SetPixels(pixels);
+
+            CharacterColorPalette.StampStroke(
+                texture,
+                new Vector2(0.98f, 0.5f),
+                new Vector2(0.02f, 0.5f),
+                Color.blue,
+                8,
+                PaintBrushTexture.Soft);
+
+            Assert.That(texture.GetPixel(32, 32), Is.EqualTo(Color.white));
+            Object.DestroyImmediate(texture);
         }
 
         [Test]
@@ -182,16 +309,19 @@ namespace SearchMyPet.AR.Tests
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar").gameObject.activeSelf, Is.False);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Top Bar").gameObject.activeSelf, Is.True);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options").gameObject.activeSelf, Is.False);
-            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Size Options").gameObject.activeSelf, Is.False);
+            Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Brush Options").gameObject.activeInHierarchy, Is.False);
             Assert.That(prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Palette Options").gameObject.activeSelf, Is.True);
             var quickControls = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Quick Controls");
             var toolbar = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Toolbar");
             var toolOptions = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options");
+            var historyControls = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area/Paint History Controls");
             Assert.That(quickControls.anchoredPosition, Is.EqualTo(new Vector2(0f, 75f)));
             Assert.That(toolbar.anchoredPosition, Is.EqualTo(new Vector2(0f, 205f)));
             Assert.That(toolbar.sizeDelta, Is.EqualTo(new Vector2(320f, 58f)));
             Assert.That(toolOptions.anchoredPosition, Is.EqualTo(new Vector2(0f, 267f)));
             Assert.That(toolOptions.sizeDelta, Is.EqualTo(new Vector2(320f, 82f)));
+            Assert.That(historyControls.anchoredPosition, Is.EqualTo(new Vector2(12f, -137f)));
+            Assert.That(historyControls.anchoredPosition3D.z, Is.EqualTo(0f));
             var safeAreaRect = (RectTransform)prefab.transform.Find("Character Paint UI/Safe Area");
             var captureButton = (RectTransform)quickControls.Find("Capture Button");
             GetVerticalBounds(captureButton, safeAreaRect, out _, out var quickTop);
@@ -211,7 +341,7 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(tool.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(56f, 46f)));
                 Assert.That(tool.GetComponentInChildren<Text>().fontSize, Is.EqualTo(9));
             }
-            foreach (var size in prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Size Options").GetComponentsInChildren<Button>(true))
+            foreach (var size in prefab.transform.Find("Character Paint UI/Safe Area/Paint Tool Options/Brush Options").GetComponentsInChildren<Button>(true))
             {
                 Assert.That(size.GetComponent<RectTransform>().sizeDelta, Is.EqualTo(new Vector2(70f, 58f)));
                 Assert.That(size.GetComponentInChildren<Text>().fontSize, Is.EqualTo(16));
@@ -258,6 +388,14 @@ namespace SearchMyPet.AR.Tests
                 var safeArea = instance.transform.Find("Character Paint UI/Safe Area");
                 var paletteButton = safeArea.Find("Paint Quick Controls/Color Palette Button").GetComponent<Button>();
                 var lensSelector = GameObject.Find("Status Canvas").transform.Find("Camera Lens Selector").gameObject;
+                var quickRect = (RectTransform)safeArea.Find("Paint Quick Controls");
+                var toolbarRect = (RectTransform)safeArea.Find("Paint Toolbar");
+                var optionsRect = (RectTransform)safeArea.Find("Paint Tool Options");
+                var historyRect = (RectTransform)safeArea.Find("Paint History Controls");
+                var initialQuickPosition = quickRect.anchoredPosition;
+                var initialToolbarPosition = toolbarRect.anchoredPosition;
+                var initialOptionsPosition = optionsRect.anchoredPosition;
+                var initialHistoryPosition = historyRect.anchoredPosition;
                 Assert.That(lensSelector.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 paletteButton.onClick.Invoke();
@@ -265,6 +403,14 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(lensSelector.activeSelf, Is.False);
                 Assert.That(safeArea.Find("Paint Quick Controls").gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Toolbar").gameObject.activeSelf, Is.True);
+                Assert.That(quickRect.anchoredPosition, Is.EqualTo(initialQuickPosition));
+                Assert.That(toolbarRect.anchoredPosition, Is.EqualTo(initialToolbarPosition));
+                Assert.That(optionsRect.anchoredPosition, Is.EqualTo(initialOptionsPosition));
+                Assert.That(historyRect.anchoredPosition, Is.EqualTo(initialHistoryPosition));
+                Assert.That(safeArea.Find("Paint Toolbar/크기").gameObject.activeSelf, Is.False);
+                var brushOptions = safeArea.Find("Paint Tool Options/Brush Options");
+                Assert.That(brushOptions, Is.Not.Null);
+                Assert.That(brushOptions.Find("Brush Size Slider").GetComponent<Slider>().gameObject.activeSelf, Is.True);
                 Assert.That(safeArea.Find("Paint Top Bar").gameObject.activeSelf, Is.True);
                 safeArea.Find("Paint Toolbar/팔레트").GetComponent<Button>().onClick.Invoke();
                 Assert.That(safeArea.Find("Paint Tool Options").gameObject.activeSelf, Is.True);

@@ -646,6 +646,46 @@ namespace SearchMyPet.Tests.Editor
         }
 
         [Test]
+        public void CaptureButton_StaysVisibleAfterPlacementAndStartsRepositioning()
+        {
+            var root = new GameObject("Controller");
+            var character = new GameObject("Character");
+            var buttonObject = new GameObject("Capture", typeof(RectTransform), typeof(CanvasRenderer), typeof(UnityEngine.UI.Image), typeof(UnityEngine.UI.Button));
+            try
+            {
+                var controller = root.AddComponent<WallPlacementController>();
+                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                typeof(WallPlacementController).GetMethod("Awake", flags)?.Invoke(controller, null);
+                typeof(WallPlacementController).GetField("placeButton", flags)
+                    ?.SetValue(controller, buttonObject.GetComponent<UnityEngine.UI.Button>());
+                var stateMachine = (WallPlacementStateMachine)typeof(WallPlacementController)
+                    .GetField("stateMachine", flags)?.GetValue(controller);
+                stateMachine.SetCandidateAvailable(true);
+                stateMachine.TryBeginPlacement();
+                stateMachine.CompletePlacement(true);
+                ((CharacterColorPalette)typeof(WallPlacementController).GetField("colorPalette", flags)
+                    ?.GetValue(controller)).SetCharacter(character);
+
+                typeof(WallPlacementController).GetMethod("RefreshUi", flags)
+                    ?.Invoke(controller, new object[] { null });
+
+                var button = buttonObject.GetComponent<UnityEngine.UI.Button>();
+                Assert.That(buttonObject.activeSelf, Is.True);
+                Assert.That(button.interactable, Is.True);
+
+                controller.PlaceAtCandidate();
+
+                Assert.That(controller.State, Is.EqualTo(WallPlacementState.Scanning));
+            }
+            finally
+            {
+                Object.DestroyImmediate(character);
+                Object.DestroyImmediate(buttonObject);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void StateMachine_FailedAnchorReturnsToCurrentCandidate()
         {
             var stateMachine = new WallPlacementStateMachine();

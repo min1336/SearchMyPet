@@ -2,9 +2,7 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
-#if UNITY_IOS
 using UnityEditor.iOS.Xcode;
-#endif
 using UnityEngine;
 
 namespace SearchMyPet.Editor
@@ -69,9 +67,7 @@ namespace SearchMyPet.Editor
                     $"errors={report.summary.totalErrors}, warnings={report.summary.totalWarnings}");
             }
 
-#if UNITY_IOS
             ValidateSwiftLinkerConfiguration(outputPath);
-#endif
 
             Debug.Log(
                 $"[SearchMyPet iOS] Xcode export succeeded: {outputPath}, " +
@@ -101,7 +97,6 @@ namespace SearchMyPet.Editor
             }
         }
 
-#if UNITY_IOS
         private static void ValidateSwiftLinkerConfiguration(string outputPath)
         {
             var projectPath = PBXProject.GetPBXProjectPath(outputPath);
@@ -172,6 +167,5 @@ namespace SearchMyPet.Editor
                     "Do not transfer this export to the Mac; check IosXcodePostprocessor errors first.");
             }
         }
-#endif
     }
 }
