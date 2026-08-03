@@ -109,6 +109,7 @@ namespace SearchMyPet.AR
         private GameObject toolbar;
         private GameObject topBar;
         private GameObject historyControls;
+        private GameObject posePopup;
         private GameObject cameraLensSelector;
         private GameObject placementInstructionPanel;
         private Button undoButton;
@@ -138,6 +139,7 @@ namespace SearchMyPet.AR
         public bool ToolsOpen { get; private set; }
         public bool CanUndo => undoHistory.Count > 0;
         public bool CanRedo => redoHistory.Count > 0;
+        public bool IsPosePopupVisible => posePopup != null && posePopup.activeSelf;
 
         public void Initialize(Transform canvas)
         {
@@ -185,6 +187,7 @@ namespace SearchMyPet.AR
                 CreateQuickBar(safeArea.transform);
                 CreateHistoryControls(safeArea.transform);
             }
+            CreatePosePopup();
             ShowTool(Tool.Brush);
             CloseToolMenu();
             paintUi.SetActive(true);
@@ -396,6 +399,10 @@ namespace SearchMyPet.AR
             button?.onClick.RemoveListener(ToggleToolMenu);
             button?.onClick.AddListener(ToggleToolMenu);
             quickColorSwatch = quickControls?.transform.Find("Color Palette Button/Selected Color")?.GetComponent<Image>();
+
+            var poseButton = quickControls?.transform.Find("Pose Button")?.GetComponent<Button>();
+            poseButton?.onClick.RemoveListener(OpenPosePopup);
+            poseButton?.onClick.AddListener(OpenPosePopup);
         }
 
         private void BindHistoryControls(Transform safeArea)
@@ -456,6 +463,22 @@ namespace SearchMyPet.AR
             contextPanel?.SetActive(false);
         }
 
+        public void OpenPosePopup()
+        {
+            if (posePopup == null)
+            {
+                return;
+            }
+
+            CloseToolMenu();
+            posePopup.SetActive(true);
+        }
+
+        public void ClosePosePopup()
+        {
+            posePopup?.SetActive(false);
+        }
+
         public void Undo()
         {
             ResetPaintStroke();
@@ -484,6 +507,7 @@ namespace SearchMyPet.AR
 
         public void NavigateBack()
         {
+            ClosePosePopup();
             IsPainting = false;
             ToolsOpen = false;
             SetHistoryControlsVisible(false);
@@ -495,6 +519,7 @@ namespace SearchMyPet.AR
 
         public void CompletePainting()
         {
+            ClosePosePopup();
             IsPainting = false;
             ToolsOpen = false;
             SetHistoryControlsVisible(false);
@@ -912,9 +937,68 @@ namespace SearchMyPet.AR
             capture.GetComponentInChildren<Text>().text = string.Empty;
             capture.GetComponent<Image>().sprite = circleSprite;
             SetRect((RectTransform)capture.transform, new Vector2(328f, 8f), new Vector2(68f, 68f), Vector2.zero, Vector2.zero, Vector2.zero);
-            var pose = CreateButton(quickControls.transform, "Pose Button", Card, Color.white, () => { });
+            var pose = CreateButton(quickControls.transform, "Pose Button", Card, Color.white, OpenPosePopup);
             pose.GetComponentInChildren<Text>().text = "♙\n1 / 4";
             SetRect((RectTransform)pose.transform, new Vector2(628f, 12f), new Vector2(64f, 60f), Vector2.zero, Vector2.zero, Vector2.zero);
+        }
+
+        private void CreatePosePopup()
+        {
+            if (paintUi == null || posePopup != null)
+            {
+                return;
+            }
+
+            posePopup = new GameObject("Pose Popup", typeof(RectTransform), typeof(Image));
+            posePopup.transform.SetParent(paintUi.transform, false);
+            uiAssets.Add(posePopup);
+
+            var popupRect = (RectTransform)posePopup.transform;
+            popupRect.anchorMin = Vector2.zero;
+            popupRect.anchorMax = Vector2.one;
+            popupRect.offsetMin = Vector2.zero;
+            popupRect.offsetMax = Vector2.zero;
+            popupRect.pivot = new Vector2(0.5f, 0.5f);
+
+            var backdrop = posePopup.GetComponent<Image>();
+            backdrop.color = new Color(0f, 0f, 0f, 0.55f);
+            backdrop.raycastTarget = true;
+
+            var card = new GameObject("Pose Popup Card", typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(posePopup.transform, false);
+            var cardRect = (RectTransform)card.transform;
+            SetRect(
+                cardRect,
+                Vector2.zero,
+                new Vector2(300f, 220f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f));
+            var cardImage = card.GetComponent<Image>();
+            cardImage.color = Panel;
+            cardImage.sprite = roundedSprite;
+            cardImage.type = Image.Type.Sliced;
+
+            var title = CreateText(card.transform, "POSE", 24, Color.white);
+            SetRect(
+                title.rectTransform,
+                new Vector2(0f, 64f),
+                new Vector2(260f, 42f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f));
+
+            var close = CreateButton(card.transform, "Close Pose Popup", Card, Color.white, ClosePosePopup);
+            close.GetComponentInChildren<Text>().text = "CLOSE";
+            SetRect(
+                (RectTransform)close.transform,
+                new Vector2(0f, -68f),
+                new Vector2(120f, 48f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f));
+
+            posePopup.SetActive(false);
         }
 
         private void UpdateToolSelection()
@@ -1123,6 +1207,7 @@ namespace SearchMyPet.AR
 
         private void ClearPaintTarget()
         {
+            ClosePosePopup();
             ResetPaintStroke();
             undoHistory.Clear();
             redoHistory.Clear();

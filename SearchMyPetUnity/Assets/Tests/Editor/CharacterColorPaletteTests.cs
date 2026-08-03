@@ -232,6 +232,41 @@ namespace SearchMyPet.AR.Tests
         }
 
         [Test]
+        public void PoseButton_OpensAndClosesCenteredPopup()
+        {
+            var paletteObject = new GameObject("Palette");
+            var canvasObject = new GameObject("Canvas", typeof(Canvas));
+            try
+            {
+                var palette = paletteObject.AddComponent<CharacterColorPalette>();
+                palette.Initialize(canvasObject.transform);
+
+                var paintUi = canvasObject.transform.Find("Character Paint UI");
+                var poseButton = paintUi.Find("Safe Area/Paint Quick Controls/Pose Button").GetComponent<Button>();
+                var popup = paintUi.Find("Pose Popup");
+                var card = (RectTransform)popup.Find("Pose Popup Card");
+
+                Assert.That(popup.gameObject.activeSelf, Is.False);
+                Assert.That(card.anchorMin, Is.EqualTo(new Vector2(0.5f, 0.5f)));
+                Assert.That(card.anchorMax, Is.EqualTo(new Vector2(0.5f, 0.5f)));
+                Assert.That(card.pivot, Is.EqualTo(new Vector2(0.5f, 0.5f)));
+                Assert.That(card.anchoredPosition, Is.EqualTo(Vector2.zero));
+
+                poseButton.onClick.Invoke();
+                Assert.That(palette.IsPosePopupVisible, Is.True);
+                Assert.That(popup.gameObject.activeSelf, Is.True);
+
+                popup.Find("Pose Popup Card/Close Pose Popup").GetComponent<Button>().onClick.Invoke();
+                Assert.That(palette.IsPosePopupVisible, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(paletteObject);
+                Object.DestroyImmediate(canvasObject);
+            }
+        }
+
+        [Test]
         public void StampStroke_DoesNotBridgeUvSeams()
         {
             var texture = new Texture2D(64, 64, TextureFormat.RGBA32, false);
