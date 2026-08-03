@@ -252,7 +252,7 @@ namespace SearchMyPet.AR.Tests
                 Assert.That(card.Find("Label"), Is.Null);
                 Assert.That(card.Find("Close Pose Popup"), Is.Null);
                 var options = card.GetComponentsInChildren<Button>(true);
-                Assert.That(options, Has.Length.EqualTo(4));
+                Assert.That(options, Has.Length.EqualTo(3));
                 Assert.That(card.anchorMin, Is.EqualTo(new Vector2(0.5f, 0.5f)));
                 Assert.That(card.anchorMax, Is.EqualTo(new Vector2(0.5f, 0.5f)));
                 Assert.That(card.pivot, Is.EqualTo(new Vector2(0.5f, 0.5f)));
@@ -273,6 +273,52 @@ namespace SearchMyPet.AR.Tests
 
                 poseButton.onClick.Invoke();
                 Assert.That(palette.IsPosePopupVisible, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(paletteObject);
+                Object.DestroyImmediate(canvasObject);
+                Object.DestroyImmediate(character);
+            }
+        }
+
+        [Test]
+        public void PoseAssets_ReplaceVisibleCharacterModel()
+        {
+            var paletteObject = new GameObject("Palette");
+            var canvasObject = new GameObject("Canvas", typeof(Canvas));
+            var character = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var laydown = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Chameleon/Poses/ChameleonLaydown.fbx");
+            var sitdown = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Chameleon/Poses/ChameleonSitdown.fbx");
+            try
+            {
+                Assert.That(laydown, Is.Not.Null);
+                Assert.That(sitdown, Is.Not.Null);
+                var palette = paletteObject.AddComponent<CharacterColorPalette>();
+                palette.Initialize(canvasObject.transform);
+                palette.SetPosePrefabs(laydown, sitdown);
+                character.SetActive(false);
+                palette.SetCharacter(character);
+
+                var baseRenderer = character.GetComponent<Renderer>();
+                var baseMaterial = baseRenderer.sharedMaterial;
+                palette.SelectPose(1);
+                var laydownInstance = character.transform.Find("ChameleonLaydown Pose");
+                Assert.That(laydownInstance, Is.Not.Null);
+                Assert.That(baseRenderer.gameObject.activeSelf, Is.False);
+                Assert.That(laydownInstance.gameObject.activeSelf, Is.True);
+                Assert.That(laydownInstance.GetComponentInChildren<Renderer>(true), Is.Not.Null);
+
+                palette.SelectPose(2);
+                var sitdownInstance = character.transform.Find("ChameleonSitdown Pose");
+                Assert.That(laydownInstance.gameObject.activeSelf, Is.False);
+                Assert.That(sitdownInstance, Is.Not.Null);
+                Assert.That(sitdownInstance.gameObject.activeSelf, Is.True);
+
+                palette.SelectPose(0);
+                Assert.That(baseRenderer.gameObject.activeSelf, Is.True);
+                Assert.That(sitdownInstance.gameObject.activeSelf, Is.False);
+                Assert.That(baseRenderer.sharedMaterial, Is.SameAs(baseMaterial));
             }
             finally
             {

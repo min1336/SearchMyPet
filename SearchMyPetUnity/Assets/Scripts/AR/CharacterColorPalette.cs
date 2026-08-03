@@ -22,6 +22,7 @@ namespace SearchMyPet.AR
         {
             public Renderer Renderer;
             public Collider Collider;
+            public Material OriginalMaterial;
             public Material Material;
             public Texture2D Texture;
         }
@@ -107,9 +108,9 @@ namespace SearchMyPet.AR
         {
             new(0f, 0f, 0f),
             new(0f, -35f, -12f),
-            new(0f, 35f, 12f),
-            new(0f, 180f, 0f)
+            new(0f, 35f, 12f)
         };
+        private readonly GameObject[] poseVisualInstances = new GameObject[PoseRotations.Length];
         private GameObject paintUi;
         private GameObject contextPanel;
         private GameObject quickControls;
@@ -119,9 +120,11 @@ namespace SearchMyPet.AR
         private GameObject posePopup;
         private Button[] poseOptions;
         private Outline[] poseOptionOutlines;
+        private GameObject[] posePrefabs = new GameObject[PoseRotations.Length];
         private GameObject cameraLensSelector;
         private GameObject placementInstructionPanel;
         private GameObject paintTarget;
+        private Renderer[] basePoseRenderers;
         private Quaternion paintTargetBaseLocalRotation;
         private int selectedPoseIndex;
         private Button undoButton;
@@ -329,6 +332,7 @@ namespace SearchMyPet.AR
             paintTargetBaseLocalRotation = character == null
                 ? Quaternion.identity
                 : character.transform.localRotation;
+            basePoseRenderers = character?.GetComponentsInChildren<Renderer>(true);
             ApplySelectedPose();
             if (usesEditableUi)
             {
@@ -354,9 +358,37 @@ namespace SearchMyPet.AR
                 return;
             }
 
-            foreach (var renderer in character.GetComponentsInChildren<Renderer>())
+            BuildPaintSurfaces();
+
+            ShowTool(Tool.Brush);
+            CloseToolMenu();
+        }
+
+        public void SetPosePrefabs(GameObject laydown, GameObject sitdown)
+        {
+            posePrefabs = new[] { null, laydown, sitdown };
+            if (paintTarget == null)
             {
-                if (renderer.sharedMaterial == null || IsProtectedPart(renderer.name))
+                return;
+            }
+
+            ApplySelectedPose();
+            ClearPaintSurfaces();
+            BuildPaintSurfaces();
+        }
+
+        private void BuildPaintSurfaces()
+        {
+            if (paintTarget == null)
+            {
+                return;
+            }
+
+            foreach (var renderer in paintTarget.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!renderer.gameObject.activeSelf
+                    || renderer.sharedMaterial == null
+                    || IsProtectedPart(renderer.name))
                 {
                     continue;
                 }
@@ -372,7 +404,8 @@ namespace SearchMyPet.AR
                     continue;
                 }
 
-                var material = new Material(renderer.sharedMaterial) { name = $"{renderer.name} Paint" };
+                var originalMaterial = renderer.sharedMaterial;
+                var material = new Material(originalMaterial) { name = $"{renderer.name} Paint" };
                 var baseTexture = material.HasProperty("_BaseMap")
                     ? material.GetTexture("_BaseMap") as Texture2D
                     : material.mainTexture as Texture2D;
@@ -393,20 +426,18 @@ namespace SearchMyPet.AR
 
                 renderer.sharedMaterial = material;
                 var collider = renderer.gameObject.AddComponent<MeshCollider>();
-                ((MeshCollider)collider).sharedMesh = mesh;
+                collider.sharedMesh = mesh;
                 surfaces.Add(collider, new PaintSurface
                 {
                     Renderer = renderer,
                     Collider = collider,
+                    OriginalMaterial = originalMaterial,
                     Material = material,
                     Texture = texture
                 });
                 runtimeAssets.Add(material);
                 runtimeAssets.Add(texture);
             }
-
-            ShowTool(Tool.Brush);
-            CloseToolMenu();
         }
 
         private void BindQuickControls(Transform safeArea)
@@ -525,9 +556,91 @@ namespace SearchMyPet.AR
                 return;
             }
 
-            // ponytail: the imported model is a baked static mesh, so use four visible orientation presets until pose assets exist.
+            for (var index = 0; index < poseVisualInstances.Length; index++)
+            {
+                if (poseVisualInstances[index] != null)
+                {
+                    poseVisualInstances[index].SetActive(false);
+                }
+            }
+
+            var posePrefab = selectedPoseIndex < posePrefabs.Length
+                ? posePrefabs[selectedPoseIndex]
+                : null;
+            if (posePrefab != null)
+            {
+                poseVisualInstances[selectedPoseIndex] ??= CreatePoseVisual(posePrefab);
+                poseVisualInstances[selectedPoseIndex].SetActive(true);
+                SetBasePoseVisible(false);
+                paintTarget.transform.localRotation = paintTargetBaseLocalRotation;
+                return;
+            }
+
+            SetBasePoseVisible(true);
             paintTarget.transform.localRotation = paintTargetBaseLocalRotation
                 * Quaternion.Euler(PoseRotations[selectedPoseIndex]);
+        }
+
+        private GameObject CreatePoseVisual(GameObject posePrefab)
+        {
+            var instance = Instantiate(posePrefab, paintTarget.transform, false);
+            instance.name = $"{posePrefab.name} Pose";
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+            instance.transform.localScale = Vector3.one * CalculatePoseScale(posePrefab);
+            instance.SetActive(false);
+            return instance;
+        }
+
+        private float CalculatePoseScale(GameObject posePrefab)
+        {
+            var baseSize = GetMaxBoundsSize(basePoseRenderers);
+            var poseSize = GetMaxBoundsSize(posePrefab.GetComponentsInChildren<Renderer>(true));
+            var parentScale = Mathf.Max(
+                Mathf.Abs(paintTarget.transform.lossyScale.x),
+                Mathf.Abs(paintTarget.transform.lossyScale.y),
+                Mathf.Abs(paintTarget.transform.lossyScale.z));
+            if (baseSize <= Mathf.Epsilon || poseSize <= Mathf.Epsilon || parentScale <= Mathf.Epsilon)
+            {
+                return 0.01f;
+            }
+
+            return baseSize / (poseSize * parentScale);
+        }
+
+        private void SetBasePoseVisible(bool visible)
+        {
+            if (basePoseRenderers == null)
+            {
+                return;
+            }
+
+            foreach (var renderer in basePoseRenderers)
+            {
+                if (renderer != null)
+                {
+                    renderer.gameObject.SetActive(visible);
+                }
+            }
+        }
+
+        private static float GetMaxBoundsSize(Renderer[] renderers)
+        {
+            if (renderers == null || renderers.Length == 0)
+            {
+                return 0f;
+            }
+
+            var bounds = new Bounds(renderers[0].bounds.center, renderers[0].bounds.size);
+            for (var index = 1; index < renderers.Length; index++)
+            {
+                if (renderers[index] != null)
+                {
+                    bounds.Encapsulate(renderers[index].bounds);
+                }
+            }
+
+            return Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
         }
 
         private void UpdatePoseSelection()
@@ -1005,7 +1118,7 @@ namespace SearchMyPet.AR
             capture.GetComponent<Image>().sprite = circleSprite;
             SetRect((RectTransform)capture.transform, new Vector2(328f, 8f), new Vector2(68f, 68f), Vector2.zero, Vector2.zero, Vector2.zero);
             var pose = CreateButton(quickControls.transform, "Pose Button", Card, Color.white, OpenPosePopup);
-            pose.GetComponentInChildren<Text>().text = "♙\n1 / 4";
+            pose.GetComponentInChildren<Text>().text = "♙\n1 / 3";
             SetRect((RectTransform)pose.transform, new Vector2(628f, 12f), new Vector2(64f, 60f), Vector2.zero, Vector2.zero, Vector2.zero);
         }
 
@@ -1285,10 +1398,21 @@ namespace SearchMyPet.AR
         private void ClearPaintTarget()
         {
             ClosePosePopup();
+            ClearPaintSurfaces();
+            foreach (var instance in poseVisualInstances)
+            {
+                DestroyObject(instance);
+            }
+            System.Array.Clear(poseVisualInstances, 0, poseVisualInstances.Length);
             paintTarget = null;
+            basePoseRenderers = null;
             paintTargetBaseLocalRotation = Quaternion.identity;
             selectedPoseIndex = 0;
             UpdatePoseSelection();
+        }
+
+        private void ClearPaintSurfaces()
+        {
             ResetPaintStroke();
             undoHistory.Clear();
             redoHistory.Clear();
@@ -1296,6 +1420,10 @@ namespace SearchMyPet.AR
             UpdateHistoryUi();
             foreach (var surface in surfaces.Values)
             {
+                if (surface.Renderer != null && surface.OriginalMaterial != null)
+                {
+                    surface.Renderer.sharedMaterial = surface.OriginalMaterial;
+                }
                 DestroyObject(surface.Collider);
             }
             surfaces.Clear();
