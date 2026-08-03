@@ -62,77 +62,73 @@ namespace SearchMyPet.Tests.Editor
         [Test]
         public void StabilityTracker_FirstObservationCannotBeStableWithoutAComparisonFrame()
         {
-            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f, 0.03f);
+            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f);
             var observation = new WallCandidateObservation(
                 new TrackableId(1, 2),
                 TrackingState.Tracking,
                 new Vector3(1f, 2f, 3f),
-                Quaternion.identity,
-                new Vector2(1f, 1f));
+                Vector3.forward);
 
             Assert.That(tracker.Update(observation, 1f), Is.False);
         }
 
         [Test]
-        public void StabilityTracker_PositionJumpRestartsContinuousStableTime()
+        public void StabilityTracker_PerpendicularPlaneJumpRestartsContinuousStableTime()
         {
-            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f, 0.03f);
+            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f);
             var planeId = new TrackableId(1, 2);
 
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.identity, Vector2.one), 0.1f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Vector3.right), 0.1f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, new Vector3(0.01f, 0f, 0f), Quaternion.identity, Vector2.one), 0.3f), Is.False);
+                planeId, TrackingState.Tracking, new Vector3(0.01f, 0f, 0f), Vector3.right), 0.3f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, new Vector3(0.05f, 0f, 0f), Quaternion.identity, Vector2.one), 0.3f), Is.False);
+                planeId, TrackingState.Tracking, new Vector3(0.05f, 0f, 0f), Vector3.right), 0.3f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, new Vector3(0.051f, 0f, 0f), Quaternion.identity, Vector2.one), 0.3f), Is.False);
+                planeId, TrackingState.Tracking, new Vector3(0.051f, 0f, 0f), Vector3.right), 0.3f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, new Vector3(0.052f, 0f, 0f), Quaternion.identity, Vector2.one), 0.2f), Is.True);
+                planeId, TrackingState.Tracking, new Vector3(0.052f, 0f, 0f), Vector3.right), 0.2f), Is.True);
         }
 
         [Test]
-        public void StabilityTracker_CumulativeCreepBeyondThresholdNeverBecomesStable()
+        public void StabilityTracker_MovementAlongTheSamePlaneRemainsStable()
         {
-            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f, 0.03f);
+            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f);
             var planeId = new TrackableId(1, 2);
 
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.identity, Vector2.one), 0.1f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Vector3.forward), 0.1f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, new Vector3(0.014f, 0f, 0f), Quaternion.identity, Vector2.one), 0.2f), Is.False);
+                planeId, TrackingState.Tracking, new Vector3(0.5f, 0f, 0f), Vector3.forward), 0.25f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, new Vector3(0.028f, 0f, 0f), Quaternion.identity, Vector2.one), 0.2f), Is.False);
-            Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, new Vector3(0.042f, 0f, 0f), Quaternion.identity, Vector2.one), 0.2f), Is.False);
+                planeId, TrackingState.Tracking, new Vector3(1f, 0.5f, 0f), Vector3.forward), 0.25f), Is.True);
         }
 
         [Test]
-        public void StabilityTracker_CumulativeRotationAndSizeCreepNeverBecomesStable()
+        public void StabilityTracker_NormalCreepBeyondThresholdRestartsStableTime()
         {
-            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f, 0.03f);
+            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f);
             var planeId = new TrackableId(1, 2);
 
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.identity, Vector2.one), 0.1f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Vector3.forward), 0.1f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 1.4f, 0f), new Vector2(1.02f, 1f)), 0.2f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 1.4f, 0f) * Vector3.forward), 0.2f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 2.8f, 0f), new Vector2(1.04f, 1f)), 0.2f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 2.8f, 0f) * Vector3.forward), 0.2f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 4.2f, 0f), new Vector2(1.06f, 1f)), 0.2f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 4.2f, 0f) * Vector3.forward), 0.2f), Is.False);
         }
 
         [Test]
         public void StabilityTracker_LongFrameGapRestartsObservationWindow()
         {
-            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f, 0.03f, 0.2f);
+            var tracker = new WallCandidateStabilityTracker(0.5f, 0.02f, 2f, 0.2f);
             var observation = new WallCandidateObservation(
                 new TrackableId(1, 2),
                 TrackingState.Tracking,
                 Vector3.zero,
-                Quaternion.identity,
-                Vector2.one);
+                Vector3.forward);
 
             Assert.That(tracker.Update(observation, 0.1f), Is.False);
             Assert.That(tracker.Update(observation, 0.6f), Is.False);
@@ -140,105 +136,87 @@ namespace SearchMyPet.Tests.Editor
         }
 
         [Test]
-        public void StabilityTracker_RotationOrSizeJumpRestartsContinuousStableTime()
+        public void StabilityTracker_NormalJumpRestartsContinuousStableTime()
         {
-            var tracker = new WallCandidateStabilityTracker(0.4f, 0.02f, 2f, 0.03f);
+            var tracker = new WallCandidateStabilityTracker(0.4f, 0.02f, 2f);
             var planeId = new TrackableId(1, 2);
 
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.identity, Vector2.one), 0.1f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Vector3.forward), 0.1f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 1f, 0f), new Vector2(1.01f, 1f)), 0.2f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 1f, 0f) * Vector3.forward), 0.2f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 5f, 0f), new Vector2(1.01f, 1f)), 0.3f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 5f, 0f) * Vector3.forward), 0.3f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 5f, 0f), new Vector2(1.08f, 1f)), 0.3f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.Euler(0f, 10f, 0f) * Vector3.forward), 0.3f), Is.False);
         }
 
         [Test]
         public void StabilityTracker_LimitedTrackingClearsAccumulatedStableTime()
         {
-            var tracker = new WallCandidateStabilityTracker(0.4f, 0.02f, 2f, 0.03f);
+            var tracker = new WallCandidateStabilityTracker(0.4f, 0.02f, 2f);
             var planeId = new TrackableId(1, 2);
 
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.identity, Vector2.one), 0.1f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Vector3.forward), 0.1f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.identity, Vector2.one), 0.3f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Vector3.forward), 0.3f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Limited, Vector3.zero, Quaternion.identity, Vector2.one), 0.3f), Is.False);
+                planeId, TrackingState.Limited, Vector3.zero, Vector3.forward), 0.3f), Is.False);
             Assert.That(tracker.Update(new WallCandidateObservation(
-                planeId, TrackingState.Tracking, Vector3.zero, Quaternion.identity, Vector2.one), 0.3f), Is.False);
+                planeId, TrackingState.Tracking, Vector3.zero, Vector3.forward), 0.3f), Is.False);
         }
 
         [Test]
-        public void FootprintRules_AcceptFiveConsistentSamplesOnOnePlane()
+        public void PlaneBoundary_ContainsCharacterFootprintInsideDetectedWall()
         {
-            var planeId = new TrackableId(1, 2);
-            var samples = new[]
+            var boundary = new[]
             {
-                new WallFootprintSample(planeId, 2.00f, Vector3.back),
-                new WallFootprintSample(planeId, 2.03f, Vector3.back),
-                new WallFootprintSample(planeId, 2.01f, Vector3.back),
-                new WallFootprintSample(planeId, 2.04f, Vector3.back),
-                new WallFootprintSample(planeId, 2.02f, Vector3.back)
+                new Vector2(-1f, -1f),
+                new Vector2(-1f, -1f),
+                new Vector2(-1f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(1f, -1f)
+            };
+            var footprint = new[]
+            {
+                Vector2.zero,
+                new Vector2(-0.1f, 0.1f),
+                new Vector2(0.1f, 0.1f),
+                new Vector2(-0.1f, -0.1f),
+                new Vector2(0.1f, -0.1f)
             };
 
-            Assert.That(WallFootprintRules.AreConsistent(samples, 5, 0.15f, 5f), Is.True);
+            Assert.That(WallPlaneBoundaryUtility.ContainsAll(boundary, footprint), Is.True);
         }
 
         [Test]
-        public void FootprintRules_RejectWhenAnyOfFivePointsHitsAnotherPlane()
+        public void PlaneBoundary_RejectsFootprintCrossingDetectedWallEdge()
         {
-            var planeId = new TrackableId(1, 2);
-            var samples = new[]
+            var boundary = new[]
             {
-                new WallFootprintSample(planeId, 2f, Vector3.back),
-                new WallFootprintSample(planeId, 2f, Vector3.back),
-                new WallFootprintSample(new TrackableId(3, 4), 2f, Vector3.back),
-                new WallFootprintSample(planeId, 2f, Vector3.back),
-                new WallFootprintSample(planeId, 2f, Vector3.back)
+                new Vector2(-1f, -1f),
+                new Vector2(-1f, -1f),
+                new Vector2(-1f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(1f, -1f)
+            };
+            var footprint = new[]
+            {
+                Vector2.zero,
+                new Vector2(-0.1f, 0.1f),
+                new Vector2(1.1f, 0.1f),
+                new Vector2(-0.1f, -0.1f),
+                new Vector2(1.1f, -0.1f)
             };
 
-            Assert.That(WallFootprintRules.AreConsistent(samples, 5, 0.15f, 5f), Is.False);
-        }
-
-        [Test]
-        public void FootprintRules_RejectDepthSpreadBeyondTolerance()
-        {
-            var planeId = new TrackableId(1, 2);
-            var samples = new[]
-            {
-                new WallFootprintSample(planeId, 2.00f, Vector3.back),
-                new WallFootprintSample(planeId, 2.02f, Vector3.back),
-                new WallFootprintSample(planeId, 2.01f, Vector3.back),
-                new WallFootprintSample(planeId, 2.20f, Vector3.back),
-                new WallFootprintSample(planeId, 2.03f, Vector3.back)
-            };
-
-            Assert.That(WallFootprintRules.AreConsistent(samples, 5, 0.15f, 5f), Is.False);
-        }
-
-        [Test]
-        public void FootprintRules_RejectSurfaceNormalDifferenceBeyondTolerance()
-        {
-            var planeId = new TrackableId(1, 2);
-            var samples = new[]
-            {
-                new WallFootprintSample(planeId, 2f, Vector3.back),
-                new WallFootprintSample(planeId, 2f, Vector3.back),
-                new WallFootprintSample(planeId, 2f, Quaternion.Euler(0f, 8f, 0f) * Vector3.back),
-                new WallFootprintSample(planeId, 2f, Vector3.back),
-                new WallFootprintSample(planeId, 2f, Vector3.back)
-            };
-
-            Assert.That(WallFootprintRules.AreConsistent(samples, 5, 0.15f, 5f), Is.False);
+            Assert.That(WallPlaneBoundaryUtility.ContainsAll(boundary, footprint), Is.False);
         }
 
         [Test]
         public void EnvironmentDepthRules_ApiExistsForOptionalDepthValidation()
         {
-            var rulesType = typeof(WallFootprintRules).Assembly.GetType(
+            var rulesType = typeof(WallPlaneBoundaryUtility).Assembly.GetType(
                 "SearchMyPet.AR.WallEnvironmentDepthRules");
 
             Assert.That(rulesType, Is.Not.Null,
@@ -301,9 +279,10 @@ namespace SearchMyPet.Tests.Editor
         }
 
         [TestCase(WallEnvironmentDepthResult.Unavailable, true)]
+        [TestCase(WallEnvironmentDepthResult.Pending, false)]
         [TestCase(WallEnvironmentDepthResult.Passed, true)]
         [TestCase(WallEnvironmentDepthResult.Rejected, false)]
-        public void EnvironmentDepthRules_OnlyRejectAnExplicitDepthFailure(
+        public void EnvironmentDepthRules_OnlyAllowUnavailableOrPassedDepth(
             WallEnvironmentDepthResult result,
             bool expectedPlacementAllowed)
         {
@@ -373,7 +352,7 @@ namespace SearchMyPet.Tests.Editor
             Vector2Int imageDimensions,
             out Vector2Int pixel)
         {
-            var utilityType = typeof(WallFootprintRules).Assembly.GetType(
+            var utilityType = typeof(WallPlaneBoundaryUtility).Assembly.GetType(
                 "SearchMyPet.AR.WallEnvironmentDepthCoordinateUtility");
             Assert.That(utilityType, Is.Not.Null,
                 "Screen-to-depth coordinate mapping has not been implemented yet.");
@@ -475,14 +454,14 @@ namespace SearchMyPet.Tests.Editor
             Assert.That(gate.Update(true, 0.2f), Is.False);
         }
 
-        [TestCase(false, 0, PlaneAlignment.Vertical, TrackingState.Tracking, false)]
-        [TestCase(true, 2, PlaneAlignment.Vertical, TrackingState.Tracking, false)]
-        [TestCase(true, 0, PlaneAlignment.Vertical, TrackingState.Limited, false)]
-        [TestCase(true, 0, PlaneAlignment.HorizontalUp, TrackingState.Tracking, false)]
-        [TestCase(true, 0, PlaneAlignment.Vertical, TrackingState.Tracking, true)]
+        [TestCase(false, 0f, PlaneAlignment.Vertical, TrackingState.Tracking, false)]
+        [TestCase(true, 0.21f, PlaneAlignment.Vertical, TrackingState.Tracking, false)]
+        [TestCase(true, 0f, PlaneAlignment.Vertical, TrackingState.Limited, false)]
+        [TestCase(true, 0f, PlaneAlignment.HorizontalUp, TrackingState.Tracking, false)]
+        [TestCase(true, 0f, PlaneAlignment.Vertical, TrackingState.Tracking, true)]
         public void CommitRules_RejectStaleOrCurrentlyInvalidCandidate(
             bool isSessionTracking,
-            int candidateAgeFrames,
+            float candidateAgeSeconds,
             PlaneAlignment alignment,
             TrackingState trackingState,
             bool isSubsumed)
@@ -490,7 +469,8 @@ namespace SearchMyPet.Tests.Editor
             Assert.That(
                 WallPlacementCommitRules.IsValid(
                     isSessionTracking,
-                    candidateAgeFrames,
+                    candidateAgeSeconds,
+                    0.2f,
                     alignment,
                     trackingState,
                     new Vector2(1f, 1f),
@@ -505,7 +485,8 @@ namespace SearchMyPet.Tests.Editor
             Assert.That(
                 WallPlacementCommitRules.IsValid(
                     true,
-                    1,
+                    0.1f,
+                    0.2f,
                     PlaneAlignment.Vertical,
                     TrackingState.Tracking,
                     new Vector2(0.4f, 0.3f),
@@ -539,6 +520,8 @@ namespace SearchMyPet.Tests.Editor
             var originObject = GameObject.Find("XR Origin (AR)");
             Assert.That(originObject, Is.Not.Null);
             Assert.That(originObject.GetComponent<AROcclusionManager>(), Is.Null);
+            var planeManager = originObject.GetComponent<ARPlaneManager>();
+            Assert.That(planeManager, Is.Not.Null);
             var occlusionManager = cameraObject.GetComponent<AROcclusionManager>();
             Assert.That(occlusionManager, Is.Not.Null);
             Assert.That(occlusionManager.requestedEnvironmentDepthMode, Is.EqualTo(EnvironmentDepthMode.Fastest));
@@ -592,6 +575,11 @@ namespace SearchMyPet.Tests.Editor
             var config = AssetDatabase.LoadAssetAtPath<WallPlacementConfig>(
                 "Assets/Settings/WallPlacementConfig.asset");
             Assert.That(config, Is.Not.Null);
+            Assert.That(config.MinimumPlaneSizeMeters, Is.EqualTo(new Vector2(0.24f, 0.24f)));
+            Assert.That(config.CandidateStabilitySeconds, Is.EqualTo(0.45f));
+            Assert.That(config.MaximumPlacementDistanceMeters, Is.EqualTo(3f));
+            Assert.That(config.MaximumViewAngleDegrees, Is.EqualTo(50f));
+            Assert.That(config.TrackingRecoverySeconds, Is.EqualTo(0.5f));
             Assert.That(config.UseEnvironmentDepthValidation, Is.True);
             Assert.That(config.MinimumValidEnvironmentDepthSamples, Is.EqualTo(3));
             Assert.That(config.MaximumEnvironmentDepthDeviationMeters, Is.EqualTo(0.25f));
@@ -600,6 +588,13 @@ namespace SearchMyPet.Tests.Editor
             Assert.That(
                 reticleProperties.FindProperty("config").objectReferenceValue,
                 Is.SameAs(config));
+
+            reticle.SetScanningActive(false);
+            Assert.That(planeManager.requestedDetectionMode, Is.EqualTo(PlaneDetectionMode.None));
+            Assert.That(occlusionManager.requestedEnvironmentDepthMode, Is.EqualTo(EnvironmentDepthMode.Disabled));
+            reticle.SetScanningActive(true);
+            Assert.That(planeManager.requestedDetectionMode, Is.EqualTo(PlaneDetectionMode.Vertical));
+            Assert.That(occlusionManager.requestedEnvironmentDepthMode, Is.EqualTo(EnvironmentDepthMode.Fastest));
         }
 
         [Test]

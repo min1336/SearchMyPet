@@ -13,20 +13,17 @@ MonoBehaviour:
   m_Name: WallPlacementConfig
   m_EditorClassIdentifier: Assembly-CSharp::SearchMyPet.AR.WallPlacementConfig
   wallOffsetMeters: 0.02
-  minimumPlaneSizeMeters: {x: 0.3, y: 0.3}
-  candidateStabilitySeconds: 0.75
+  minimumPlaneSizeMeters: {x: 0.24, y: 0.24}
+  candidateStabilitySeconds: 0.45
   maximumPlanePositionDeltaMeters: 0.015
   maximumPlaneRotationDeltaDegrees: 2.5
-  maximumPlaneSizeDeltaMeters: 0.03
   footprintWidthMeters: 0.18
   footprintHeightMeters: 0.18
-  maximumFootprintDepthSpreadMeters: 0.2
-  maximumFootprintNormalAngleDegrees: 5
   minimumPlacementDistanceMeters: 0.4
-  maximumPlacementDistanceMeters: 4
-  maximumViewAngleDegrees: 60
+  maximumPlacementDistanceMeters: 3
+  maximumViewAngleDegrees: 50
   maximumObservationIntervalSeconds: 0.2
-  trackingRecoverySeconds: 0.75
+  trackingRecoverySeconds: 0.5
   characterHeightMeters: 0.18
   useEnvironmentDepthValidation: 1
   minimumValidEnvironmentDepthSamples: 3

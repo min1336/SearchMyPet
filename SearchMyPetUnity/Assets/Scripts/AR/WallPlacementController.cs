@@ -216,7 +216,7 @@ namespace SearchMyPet.AR
         private void InitializeTrackingRecoveryGate()
         {
             trackingRecoveryGate = new TrackingRecoveryGate(
-                config == null ? 0.75f : config.TrackingRecoverySeconds,
+                config == null ? 0.5f : config.TrackingRecoverySeconds,
                 config == null ? 0.2f : config.MaximumObservationIntervalSeconds);
         }
 
@@ -231,7 +231,7 @@ namespace SearchMyPet.AR
             }
 
             trackingRecoveryGate ??= new TrackingRecoveryGate(
-                config == null ? 0.75f : config.TrackingRecoverySeconds,
+                config == null ? 0.5f : config.TrackingRecoverySeconds,
                 config == null ? 0.2f : config.MaximumObservationIntervalSeconds);
             var isTracking = ARSession.state == ARSessionState.SessionTracking
                 && placedAnchor.trackingState == TrackingState.Tracking
@@ -366,7 +366,6 @@ namespace SearchMyPet.AR
             {
                 placeButton.gameObject.SetActive(cameraActive);
                 placeButton.interactable = state == WallPlacementState.CandidateValid || hasPlacement;
-                placeButton.transform.SetAsLastSibling();
             }
             if (repositionButton != null)
             {

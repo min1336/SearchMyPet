@@ -6,20 +6,17 @@ namespace SearchMyPet.AR
     public sealed class WallPlacementConfig : ScriptableObject
     {
         [SerializeField, Min(0f)] private float wallOffsetMeters = 0.02f;
-        [SerializeField] private Vector2 minimumPlaneSizeMeters = new(0.3f, 0.3f);
-        [SerializeField, Min(0f)] private float candidateStabilitySeconds = 0.75f;
+        [SerializeField] private Vector2 minimumPlaneSizeMeters = new(0.24f, 0.24f);
+        [SerializeField, Min(0f)] private float candidateStabilitySeconds = 0.45f;
         [SerializeField, Min(0f)] private float maximumPlanePositionDeltaMeters = 0.015f;
         [SerializeField, Min(0f)] private float maximumPlaneRotationDeltaDegrees = 2.5f;
-        [SerializeField, Min(0f)] private float maximumPlaneSizeDeltaMeters = 0.03f;
         [SerializeField, Min(0.01f)] private float footprintWidthMeters = 0.18f;
         [SerializeField, Min(0.01f)] private float footprintHeightMeters = 0.18f;
-        [SerializeField, Min(0f)] private float maximumFootprintDepthSpreadMeters = 0.2f;
-        [SerializeField, Range(0f, 90f)] private float maximumFootprintNormalAngleDegrees = 5f;
         [SerializeField, Min(0f)] private float minimumPlacementDistanceMeters = 0.4f;
-        [SerializeField, Min(0f)] private float maximumPlacementDistanceMeters = 4f;
-        [SerializeField, Range(0f, 90f)] private float maximumViewAngleDegrees = 60f;
+        [SerializeField, Min(0f)] private float maximumPlacementDistanceMeters = 3f;
+        [SerializeField, Range(0f, 90f)] private float maximumViewAngleDegrees = 50f;
         [SerializeField, Min(0.01f)] private float maximumObservationIntervalSeconds = 0.2f;
-        [SerializeField, Min(0f)] private float trackingRecoverySeconds = 0.75f;
+        [SerializeField, Min(0f)] private float trackingRecoverySeconds = 0.5f;
         [SerializeField, Min(0.01f)] private float characterHeightMeters = 0.18f;
         [SerializeField] private bool useEnvironmentDepthValidation = true;
         [SerializeField, Range(1, 5)] private int minimumValidEnvironmentDepthSamples = 3;
@@ -32,11 +29,8 @@ namespace SearchMyPet.AR
         public float CandidateStabilitySeconds => candidateStabilitySeconds;
         public float MaximumPlanePositionDeltaMeters => maximumPlanePositionDeltaMeters;
         public float MaximumPlaneRotationDeltaDegrees => maximumPlaneRotationDeltaDegrees;
-        public float MaximumPlaneSizeDeltaMeters => maximumPlaneSizeDeltaMeters;
         public float FootprintWidthMeters => footprintWidthMeters;
         public float FootprintHeightMeters => footprintHeightMeters;
-        public float MaximumFootprintDepthSpreadMeters => maximumFootprintDepthSpreadMeters;
-        public float MaximumFootprintNormalAngleDegrees => maximumFootprintNormalAngleDegrees;
         public float MinimumPlacementDistanceMeters => minimumPlacementDistanceMeters;
         public float MaximumPlacementDistanceMeters => maximumPlacementDistanceMeters;
         public float MaximumViewAngleDegrees => maximumViewAngleDegrees;

@@ -9,11 +9,11 @@ namespace SearchMyPet.AR
     public sealed class PlacementReticle : MonoBehaviour
     {
         private static readonly List<ARRaycastHit> RaycastHits = new();
-        private static readonly List<ARRaycastHit> FootprintRaycastHits = new();
-        private static readonly List<WallFootprintSample> FootprintSamples = new(5);
+        private static readonly List<Vector2> PlaneBoundaryPoints = new();
 
         [SerializeField] private ARRaycastManager raycastManager;
         [SerializeField] private ARPlaneManager planeManager;
+        [SerializeField] private ARCameraManager cameraManager;
         [SerializeField] private Camera arCamera;
         [SerializeField] private WallEnvironmentDepthValidator environmentDepthValidator;
         [SerializeField] private WallPlacementConfig config;
@@ -23,11 +23,15 @@ namespace SearchMyPet.AR
 
         private WallCandidateStabilityTracker stabilityTracker;
         private readonly Vector3[] footprintWorldSamplePoints = new Vector3[5];
+        private readonly Vector2[] footprintPlaneSamplePoints = new Vector2[5];
         private readonly Vector2[] footprintScreenSamplePoints = new Vector2[5];
         private readonly float[] footprintExpectedDepthsMeters = new float[5];
         private GameObject previewInstance;
         private TrackableId lastLoggedCandidateId = TrackableId.invalidId;
-        private int candidateValidatedFrame = -1;
+        private float candidateValidatedTime = float.NegativeInfinity;
+        private double latestCameraFrameTimestamp;
+        private double lastProcessedCameraFrameTimestamp = -1d;
+        private bool hasFreshCameraFrame;
         private bool scanningActive = true;
 
         public bool HasValidCandidate { get; private set; }
@@ -39,15 +43,16 @@ namespace SearchMyPet.AR
         {
             plane = CandidatePlane;
             pose = CandidatePose;
-            var candidateAgeFrames = candidateValidatedFrame < 0
-                ? int.MaxValue
-                : Time.frameCount - candidateValidatedFrame;
+            var candidateAgeSeconds = float.IsNegativeInfinity(candidateValidatedTime)
+                ? float.PositiveInfinity
+                : Time.unscaledTime - candidateValidatedTime;
             var isValid = HasValidCandidate
                 && plane != null
                 && config != null
                 && WallPlacementCommitRules.IsValid(
                     ARSession.state == ARSessionState.SessionTracking,
-                    candidateAgeFrames,
+                    candidateAgeSeconds,
+                    config.MaximumObservationIntervalSeconds,
                     plane.alignment,
                     plane.trackingState,
                     plane.size,
@@ -66,19 +71,53 @@ namespace SearchMyPet.AR
         {
             raycastManager ??= FindAnyObjectByType<ARRaycastManager>();
             planeManager ??= FindAnyObjectByType<ARPlaneManager>();
+            cameraManager ??= FindAnyObjectByType<ARCameraManager>();
             arCamera ??= Camera.main;
             environmentDepthValidator ??= FindAnyObjectByType<WallEnvironmentDepthValidator>();
             InitializeStabilityTracker();
         }
 
+        private void OnEnable()
+        {
+            if (cameraManager != null)
+            {
+                cameraManager.frameReceived += OnCameraFrameReceived;
+            }
+        }
+
         private void OnDisable()
         {
+            if (cameraManager != null)
+            {
+                cameraManager.frameReceived -= OnCameraFrameReceived;
+            }
+
             SetCandidateUnavailable(true);
         }
 
         private void Update()
         {
-            if (!scanningActive || raycastManager == null || planeManager == null || arCamera == null || config == null)
+            if (!scanningActive)
+            {
+                return;
+            }
+
+            if (cameraManager != null && !hasFreshCameraFrame)
+            {
+                return;
+            }
+
+            var observationDeltaSeconds = Time.unscaledDeltaTime;
+            if (cameraManager != null)
+            {
+                hasFreshCameraFrame = false;
+                observationDeltaSeconds = lastProcessedCameraFrameTimestamp < 0d
+                    ? 0f
+                    : Mathf.Max(0f, (float)(latestCameraFrameTimestamp - lastProcessedCameraFrameTimestamp));
+                lastProcessedCameraFrameTimestamp = latestCameraFrameTimestamp;
+            }
+
+            if (raycastManager == null || planeManager == null || arCamera == null || config == null)
             {
                 SetCandidateUnavailable(true);
                 return;
@@ -151,9 +190,8 @@ namespace SearchMyPet.AR
                 plane.trackableId,
                 plane.trackingState,
                 plane.transform.position,
-                plane.transform.rotation,
-                plane.size);
-            var stable = stabilityTracker.Update(observation, Time.deltaTime);
+                plane.normal);
+            var stable = stabilityTracker.Update(observation, observationDeltaSeconds);
             SetReticleColor(stable ? new Color(0.1f, 1f, 0.45f, 0.95f) : new Color(1f, 0.75f, 0.1f, 0.95f));
             if (!stable)
             {
@@ -170,6 +208,13 @@ namespace SearchMyPet.AR
                     config.MaximumEnvironmentDepthDeviationMeters,
                     config.MaximumEnvironmentDepthResidualSpreadMeters,
                     config.EnvironmentDepthValidationIntervalSeconds);
+                if (depthResult == WallEnvironmentDepthResult.Pending)
+                {
+                    SetReticleColor(new Color(1f, 0.75f, 0.1f, 0.95f));
+                    SetCandidateUnavailable(false);
+                    return;
+                }
+
                 if (!WallEnvironmentDepthRules.AllowsPlacement(depthResult))
                 {
                     ResetStabilityAndDepthValidation();
@@ -185,34 +230,53 @@ namespace SearchMyPet.AR
         public void SetScanningActive(bool active)
         {
             scanningActive = active;
+            hasFreshCameraFrame = false;
+            lastProcessedCameraFrameTimestamp = -1d;
+            if (planeManager != null)
+            {
+                planeManager.requestedDetectionMode = active
+                    ? PlaneDetectionMode.Vertical
+                    : PlaneDetectionMode.None;
+                foreach (var plane in planeManager.trackables)
+                {
+                    plane.GetComponent<WallPlaneOutlineVisualizer>()?.SetScanningActive(active);
+                }
+            }
+
+            environmentDepthValidator?.SetValidationActive(
+                active && config != null && config.UseEnvironmentDepthValidation);
             if (!active)
             {
                 SetCandidateUnavailable(true);
             }
         }
 
+        private void OnCameraFrameReceived(ARCameraFrameEventArgs eventArgs)
+        {
+            if (!scanningActive)
+            {
+                return;
+            }
+
+            latestCameraFrameTimestamp = eventArgs.timestampNs.HasValue && eventArgs.timestampNs.Value > 0
+                ? eventArgs.timestampNs.Value * 0.000000001d
+                : Time.realtimeSinceStartupAsDouble;
+            hasFreshCameraFrame = true;
+        }
+
         private void InitializeStabilityTracker()
         {
             stabilityTracker = config == null
-                ? new WallCandidateStabilityTracker(0.75f, 0.015f, 2.5f, 0.03f, 0.2f)
+                ? new WallCandidateStabilityTracker(0.45f, 0.015f, 2.5f, 0.2f)
                 : new WallCandidateStabilityTracker(
                     config.CandidateStabilitySeconds,
                     config.MaximumPlanePositionDeltaMeters,
                     config.MaximumPlaneRotationDeltaDegrees,
-                    config.MaximumPlaneSizeDeltaMeters,
                     config.MaximumObservationIntervalSeconds);
         }
 
         private bool TryValidateFootprint(ARPlane centerPlane, ARRaycastHit centerHit, Pose wallPose)
         {
-            FootprintSamples.Clear();
-            FootprintSamples.Add(new WallFootprintSample(
-                centerPlane.trackableId,
-                centerHit.distance,
-                centerPlane.normal));
-            footprintScreenSamplePoints[0] = arCamera.pixelRect.center;
-            footprintExpectedDepthsMeters[0] = GetCameraForwardDepth(centerHit.pose.position);
-
             var wallSurfacePose = new Pose(centerHit.pose.position, wallPose.rotation);
             WallFootprintUtility.FillWorldSamplePoints(
                 wallSurfacePose,
@@ -220,41 +284,33 @@ namespace SearchMyPet.AR
                 config.FootprintHeightMeters,
                 footprintWorldSamplePoints);
 
-            for (var index = 1; index < footprintWorldSamplePoints.Length; index++)
+            PlaneBoundaryPoints.Clear();
+            var boundary = centerPlane.boundary;
+            for (var index = 0; index < boundary.Length; index++)
             {
-                var screenPoint = arCamera.WorldToScreenPoint(footprintWorldSamplePoints[index]);
+                PlaneBoundaryPoints.Add(boundary[index]);
+            }
+
+            for (var index = 0; index < footprintWorldSamplePoints.Length; index++)
+            {
+                var worldPoint = footprintWorldSamplePoints[index];
+                var localPoint = centerPlane.transform.InverseTransformPoint(worldPoint);
+                footprintPlaneSamplePoints[index] = new Vector2(localPoint.x, localPoint.z);
+                var screenPoint = index == 0
+                    ? new Vector3(arCamera.pixelRect.center.x, arCamera.pixelRect.center.y, 1f)
+                    : arCamera.WorldToScreenPoint(worldPoint);
                 if (screenPoint.z <= 0f || !arCamera.pixelRect.Contains(screenPoint))
                 {
                     return false;
                 }
 
-                FootprintRaycastHits.Clear();
-                if (!raycastManager.Raycast(screenPoint, FootprintRaycastHits, TrackableType.PlaneWithinPolygon)
-                    || FootprintRaycastHits.Count == 0)
-                {
-                    return false;
-                }
-
-                var footprintHit = FootprintRaycastHits[0];
-                var footprintPlane = planeManager.GetPlane(footprintHit.trackableId);
-                if (footprintPlane == null)
-                {
-                    return false;
-                }
-
-                FootprintSamples.Add(new WallFootprintSample(
-                    footprintHit.trackableId,
-                    footprintHit.distance,
-                    footprintPlane.normal));
                 footprintScreenSamplePoints[index] = screenPoint;
-                footprintExpectedDepthsMeters[index] = GetCameraForwardDepth(footprintHit.pose.position);
+                footprintExpectedDepthsMeters[index] = GetCameraForwardDepth(worldPoint);
             }
 
-            return WallFootprintRules.AreConsistent(
-                FootprintSamples,
-                5,
-                config.MaximumFootprintDepthSpreadMeters,
-                config.MaximumFootprintNormalAngleDegrees);
+            return WallPlaneBoundaryUtility.ContainsAll(
+                PlaneBoundaryPoints,
+                footprintPlaneSamplePoints);
         }
 
         private float GetCameraForwardDepth(Vector3 worldPosition)
@@ -269,7 +325,7 @@ namespace SearchMyPet.AR
             HasValidCandidate = true;
             CandidatePlane = plane;
             CandidatePose = pose;
-            candidateValidatedFrame = Time.frameCount;
+            candidateValidatedTime = Time.unscaledTime;
             SetReticleColor(new Color(0.1f, 1f, 0.45f, 0.95f));
 
             if (previewInstance == null && previewPrefab != null)
@@ -301,7 +357,7 @@ namespace SearchMyPet.AR
             HasValidCandidate = false;
             CandidatePlane = null;
             CandidatePose = default;
-            candidateValidatedFrame = -1;
+            candidateValidatedTime = float.NegativeInfinity;
             if (previewInstance != null)
             {
                 previewInstance.SetActive(false);

@@ -22,11 +22,12 @@ namespace SearchMyPet.AR
         private readonly float[] patchSamplesMeters = new float[PatchSampleCapacity];
         private readonly Vector2[] cachedScreenSamplePoints = new Vector2[5];
         private readonly float[] cachedExpectedDepthsMeters = new float[5];
-        private Matrix4x4 displayMatrix;
-        private bool hasDisplayMatrix;
+        private Matrix4x4 screenToImageMatrix;
+        private bool hasScreenToImageMatrix;
         private bool hasCachedResult;
         private float nextValidationTime;
         private WallEnvironmentDepthResult cachedResult;
+        private EnvironmentDepthMode activeEnvironmentDepthMode = EnvironmentDepthMode.Fastest;
         private string lastLoggedState;
 
         public WallEnvironmentDepthResult Validate(
@@ -45,11 +46,15 @@ namespace SearchMyPet.AR
                 return WallEnvironmentDepthResult.Unavailable;
             }
 
-            if (hasCachedResult
-                && Time.unscaledTime < nextValidationTime
-                && InputsMatchCache(screenSamplePoints, expectedDepthsMeters))
+            if (hasCachedResult && Time.unscaledTime < nextValidationTime)
             {
-                return cachedResult;
+                if (cachedResult == WallEnvironmentDepthResult.Unavailable
+                    || InputsMatchCache(screenSamplePoints, expectedDepthsMeters))
+                {
+                    return cachedResult;
+                }
+
+                return WallEnvironmentDepthResult.Pending;
             }
 
             cachedResult = ValidateCurrentFrame(
@@ -99,11 +104,28 @@ namespace SearchMyPet.AR
             nextValidationTime = 0f;
         }
 
+        public void SetValidationActive(bool active)
+        {
+            if (occlusionManager != null)
+            {
+                occlusionManager.requestedEnvironmentDepthMode = active
+                    ? activeEnvironmentDepthMode
+                    : EnvironmentDepthMode.Disabled;
+            }
+
+            ResetCache();
+        }
+
         private void Awake()
         {
             occlusionManager ??= FindAnyObjectByType<AROcclusionManager>();
             cameraManager ??= FindAnyObjectByType<ARCameraManager>();
             arCamera ??= Camera.main;
+            if (occlusionManager != null
+                && occlusionManager.requestedEnvironmentDepthMode != EnvironmentDepthMode.Disabled)
+            {
+                activeEnvironmentDepthMode = occlusionManager.requestedEnvironmentDepthMode;
+            }
         }
 
         private void OnEnable()
@@ -128,8 +150,12 @@ namespace SearchMyPet.AR
         {
             if (eventArgs.displayMatrix.HasValue)
             {
-                displayMatrix = eventArgs.displayMatrix.Value;
-                hasDisplayMatrix = true;
+                var displayMatrix = eventArgs.displayMatrix.Value;
+                hasScreenToImageMatrix = Mathf.Abs(displayMatrix.determinant) >= 0.000001f;
+                if (hasScreenToImageMatrix)
+                {
+                    screenToImageMatrix = displayMatrix.inverse.transpose;
+                }
             }
         }
 
@@ -150,6 +176,11 @@ namespace SearchMyPet.AR
             if (support != Supported.Supported)
             {
                 var reason = support == Supported.Unknown ? "support-unknown" : "unsupported";
+                if (support == Supported.Unsupported)
+                {
+                    occlusionManager.requestedEnvironmentDepthMode = EnvironmentDepthMode.Disabled;
+                }
+
                 LogState(reason, $"mode=fallback reason={reason}");
                 return WallEnvironmentDepthResult.Unavailable;
             }
@@ -160,7 +191,7 @@ namespace SearchMyPet.AR
                 return WallEnvironmentDepthResult.Unavailable;
             }
 
-            if (!hasDisplayMatrix)
+            if (!hasScreenToImageMatrix)
             {
                 LogState("display-matrix-unavailable", "mode=fallback reason=display-matrix-unavailable");
                 return WallEnvironmentDepthResult.Unavailable;
@@ -212,20 +243,20 @@ namespace SearchMyPet.AR
                 {
                     measuredDepthsMeters[index] = float.NaN;
                     var confidenceIsReliable = !hasConfidenceImage
-                        || (WallEnvironmentDepthCoordinateUtility.TryMapScreenPointToImagePixel(
+                        || (WallEnvironmentDepthCoordinateUtility.TryMapScreenPointToImagePixelFromMatrix(
                                 screenSamplePoints[index],
                                 arCamera.pixelRect,
-                                displayMatrix,
+                                screenToImageMatrix,
                                 confidenceDimensions,
                                 out var confidencePixel)
                             && IsConfidencePatchReliable(
                                 confidencePlane,
                                 confidenceDimensions,
                                 confidencePixel));
-                    if (WallEnvironmentDepthCoordinateUtility.TryMapScreenPointToImagePixel(
+                    if (WallEnvironmentDepthCoordinateUtility.TryMapScreenPointToImagePixelFromMatrix(
                             screenSamplePoints[index],
                             arCamera.pixelRect,
-                            displayMatrix,
+                            screenToImageMatrix,
                             dimensions,
                             out var pixel)
                         && confidenceIsReliable

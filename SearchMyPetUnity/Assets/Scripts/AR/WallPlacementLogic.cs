@@ -26,29 +26,25 @@ namespace SearchMyPet.AR
             TrackableId planeId,
             TrackingState trackingState,
             Vector3 position,
-            Quaternion rotation,
-            Vector2 size)
+            Vector3 surfaceNormal)
         {
             PlaneId = planeId;
             TrackingState = trackingState;
             Position = position;
-            Rotation = rotation;
-            Size = size;
+            SurfaceNormal = surfaceNormal;
         }
 
         public TrackableId PlaneId { get; }
         public TrackingState TrackingState { get; }
         public Vector3 Position { get; }
-        public Quaternion Rotation { get; }
-        public Vector2 Size { get; }
+        public Vector3 SurfaceNormal { get; }
     }
 
     public sealed class WallCandidateStabilityTracker
     {
         private readonly float requiredDuration;
-        private readonly float maximumPositionDelta;
-        private readonly float maximumRotationDelta;
-        private readonly float maximumSizeDelta;
+        private readonly float maximumPlaneDistanceDelta;
+        private readonly float maximumNormalAngleDelta;
         private readonly float maximumObservationInterval;
         private TrackableId currentPlaneId;
         private float elapsed;
@@ -58,36 +54,33 @@ namespace SearchMyPet.AR
 
         public WallCandidateStabilityTracker(
             float requiredDuration,
-            float maximumPositionDelta,
-            float maximumRotationDelta,
-            float maximumSizeDelta)
+            float maximumPlaneDistanceDelta,
+            float maximumNormalAngleDelta)
             : this(
                 requiredDuration,
-                maximumPositionDelta,
-                maximumRotationDelta,
-                maximumSizeDelta,
+                maximumPlaneDistanceDelta,
+                maximumNormalAngleDelta,
                 float.PositiveInfinity)
         {
         }
 
         public WallCandidateStabilityTracker(
             float requiredDuration,
-            float maximumPositionDelta,
-            float maximumRotationDelta,
-            float maximumSizeDelta,
+            float maximumPlaneDistanceDelta,
+            float maximumNormalAngleDelta,
             float maximumObservationInterval)
         {
             this.requiredDuration = Mathf.Max(0f, requiredDuration);
-            this.maximumPositionDelta = Mathf.Max(0f, maximumPositionDelta);
-            this.maximumRotationDelta = Mathf.Max(0f, maximumRotationDelta);
-            this.maximumSizeDelta = Mathf.Max(0f, maximumSizeDelta);
+            this.maximumPlaneDistanceDelta = Mathf.Max(0f, maximumPlaneDistanceDelta);
+            this.maximumNormalAngleDelta = Mathf.Max(0f, maximumNormalAngleDelta);
             this.maximumObservationInterval = Mathf.Max(0f, maximumObservationInterval);
         }
 
         public bool Update(WallCandidateObservation observation, float deltaTime)
         {
             if (observation.PlaneId == TrackableId.invalidId
-                || observation.TrackingState != TrackingState.Tracking)
+                || observation.TrackingState != TrackingState.Tracking
+                || observation.SurfaceNormal.sqrMagnitude < 0.000001f)
             {
                 Reset();
                 return false;
@@ -110,9 +103,17 @@ namespace SearchMyPet.AR
                 return false;
             }
 
-            var isStable = Vector3.Distance(stabilityBaseline.Position, observation.Position) <= maximumPositionDelta
-                && Quaternion.Angle(stabilityBaseline.Rotation, observation.Rotation) <= maximumRotationDelta
-                && Vector2.Distance(stabilityBaseline.Size, observation.Size) <= maximumSizeDelta;
+            var baselineNormal = stabilityBaseline.SurfaceNormal.normalized;
+            var currentNormal = observation.SurfaceNormal.normalized;
+            var perpendicularDelta = Mathf.Abs(Vector3.Dot(
+                observation.Position - stabilityBaseline.Position,
+                baselineNormal));
+            var normalAngleDelta = Mathf.Acos(Mathf.Clamp(
+                Mathf.Abs(Vector3.Dot(baselineNormal, currentNormal)),
+                -1f,
+                1f)) * Mathf.Rad2Deg;
+            var isStable = perpendicularDelta <= maximumPlaneDistanceDelta
+                && normalAngleDelta <= maximumNormalAngleDelta;
 
             if (!isStable)
             {
@@ -135,71 +136,65 @@ namespace SearchMyPet.AR
         }
     }
 
-    public readonly struct WallFootprintSample
+    public static class WallPlaneBoundaryUtility
     {
-        public WallFootprintSample(TrackableId planeId, float distanceMeters, Vector3 surfaceNormal)
+        private const float EdgeEpsilon = 0.00001f;
+
+        public static bool ContainsAll(
+            IReadOnlyList<Vector2> boundary,
+            IReadOnlyList<Vector2> points)
         {
-            PlaneId = planeId;
-            DistanceMeters = distanceMeters;
-            SurfaceNormal = surfaceNormal;
-        }
-
-        public TrackableId PlaneId { get; }
-        public float DistanceMeters { get; }
-        public Vector3 SurfaceNormal { get; }
-    }
-
-    public static class WallFootprintRules
-    {
-        private const float MinimumNormalMagnitudeSquared = 0.000001f;
-
-        public static bool AreConsistent(
-            IReadOnlyList<WallFootprintSample> samples,
-            int requiredSampleCount,
-            float maximumDepthSpreadMeters,
-            float maximumNormalAngleDegrees)
-        {
-            if (samples == null || requiredSampleCount <= 0 || samples.Count != requiredSampleCount)
+            if (boundary == null || boundary.Count < 3 || points == null || points.Count == 0)
             {
                 return false;
             }
 
-            var referencePlaneId = samples[0].PlaneId;
-            var referenceNormal = samples[0].SurfaceNormal;
-            if (referencePlaneId == TrackableId.invalidId
-                || referenceNormal.sqrMagnitude < MinimumNormalMagnitudeSquared)
+            foreach (var point in points)
             {
-                return false;
-            }
-
-            referenceNormal.Normalize();
-            var minimumDepth = float.PositiveInfinity;
-            var maximumDepth = float.NegativeInfinity;
-            var allowedNormalAngle = Mathf.Max(0f, maximumNormalAngleDegrees);
-
-            foreach (var sample in samples)
-            {
-                if (sample.PlaneId != referencePlaneId
-                    || sample.DistanceMeters < 0f
-                    || float.IsNaN(sample.DistanceMeters)
-                    || float.IsInfinity(sample.DistanceMeters)
-                    || sample.SurfaceNormal.sqrMagnitude < MinimumNormalMagnitudeSquared
-                    || Vector3.Angle(referenceNormal, sample.SurfaceNormal) > allowedNormalAngle)
+                if (!ContainsPoint(boundary, point))
                 {
                     return false;
                 }
-
-                minimumDepth = Mathf.Min(minimumDepth, sample.DistanceMeters);
-                maximumDepth = Mathf.Max(maximumDepth, sample.DistanceMeters);
             }
 
-            return maximumDepth - minimumDepth <= Mathf.Max(0f, maximumDepthSpreadMeters);
+            return true;
+        }
+
+        private static bool ContainsPoint(IReadOnlyList<Vector2> boundary, Vector2 point)
+        {
+            var inside = false;
+            for (var currentIndex = 0; currentIndex < boundary.Count; currentIndex++)
+            {
+                var previousIndex = currentIndex == 0 ? boundary.Count - 1 : currentIndex - 1;
+                var start = boundary[previousIndex];
+                var end = boundary[currentIndex];
+                var segment = end - start;
+                var fromStart = point - start;
+                var cross = segment.x * fromStart.y - segment.y * fromStart.x;
+                var projection = Vector2.Dot(fromStart, segment);
+                if (segment.sqrMagnitude > EdgeEpsilon * EdgeEpsilon
+                    && Mathf.Abs(cross) <= EdgeEpsilon
+                    && projection >= -EdgeEpsilon
+                    && projection <= segment.sqrMagnitude + EdgeEpsilon)
+                {
+                    return true;
+                }
+
+                if ((start.y > point.y) != (end.y > point.y)
+                    && point.x < (end.x - start.x) * (point.y - start.y) / (end.y - start.y) + start.x)
+                {
+                    inside = !inside;
+                }
+            }
+
+            return inside;
         }
     }
 
     public enum WallEnvironmentDepthResult
     {
         Unavailable,
+        Pending,
         Passed,
         Rejected
     }
@@ -208,7 +203,8 @@ namespace SearchMyPet.AR
     {
         public static bool AllowsPlacement(WallEnvironmentDepthResult result)
         {
-            return result != WallEnvironmentDepthResult.Rejected;
+            return result == WallEnvironmentDepthResult.Unavailable
+                || result == WallEnvironmentDepthResult.Passed;
         }
 
         public static WallEnvironmentDepthResult Evaluate(
@@ -292,10 +288,35 @@ namespace SearchMyPet.AR
                 return false;
             }
 
+            return TryMapScreenPointToImagePixelFromMatrix(
+                screenPoint,
+                cameraPixelRect,
+                displayMatrix.inverse.transpose,
+                imageDimensions,
+                out pixel);
+        }
+
+        internal static bool TryMapScreenPointToImagePixelFromMatrix(
+            Vector2 screenPoint,
+            Rect cameraPixelRect,
+            Matrix4x4 screenToImageMatrix,
+            Vector2Int imageDimensions,
+            out Vector2Int pixel)
+        {
+            pixel = default;
+            if (cameraPixelRect.width <= 0f
+                || cameraPixelRect.height <= 0f
+                || imageDimensions.x <= 0
+                || imageDimensions.y <= 0
+                || !cameraPixelRect.Contains(screenPoint))
+            {
+                return false;
+            }
+
             var screenUv = new Vector2(
                 (screenPoint.x - cameraPixelRect.xMin) / cameraPixelRect.width,
                 (screenPoint.y - cameraPixelRect.yMin) / cameraPixelRect.height);
-            var imageHomogeneous = displayMatrix.inverse.transpose
+            var imageHomogeneous = screenToImageMatrix
                 * new Vector4(screenUv.x, screenUv.y, 1f, 0f);
             if (!IsFinite(imageHomogeneous.x)
                 || !IsFinite(imageHomogeneous.y)
@@ -385,7 +406,8 @@ namespace SearchMyPet.AR
     {
         public static bool IsValid(
             bool isSessionTracking,
-            int candidateAgeFrames,
+            float candidateAgeSeconds,
+            float maximumCandidateAgeSeconds,
             PlaneAlignment alignment,
             TrackingState trackingState,
             Vector2 planeSize,
@@ -393,8 +415,8 @@ namespace SearchMyPet.AR
             bool isSubsumed)
         {
             return isSessionTracking
-                && candidateAgeFrames >= 0
-                && candidateAgeFrames <= 1
+                && candidateAgeSeconds >= 0f
+                && candidateAgeSeconds <= Mathf.Max(0f, maximumCandidateAgeSeconds)
                 && !isSubsumed
                 && WallPlacementCandidateRules.IsEligible(
                     alignment,

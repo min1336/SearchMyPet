@@ -42,6 +42,15 @@ namespace SearchMyPet.AR
             isHighlighted = highlighted;
         }
 
+        public void SetScanningActive(bool active)
+        {
+            enabled = active;
+            if (!active && outline != null)
+            {
+                outline.enabled = false;
+            }
+        }
+
         private void Update()
         {
             var isTrackedVerticalPlane = isHighlighted &&
