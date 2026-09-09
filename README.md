@@ -66,4 +66,4 @@ SMP/
 
 ## 👥 개발자
 
-* **김민혁 (1336)** — AI 글래스 개발자 아카데미 (AI Glass Developer Academy)
+* **김민혁 (1336)**
