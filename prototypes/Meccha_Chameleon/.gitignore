@@ -1,0 +1,32 @@
+# Unity generated directories
+CamoHuntAR/[Ll]ibrary/
+CamoHuntAR/[Tt]emp/
+CamoHuntAR/[Oo]bj/
+CamoHuntAR/[Bb]uild/
+CamoHuntAR/[Bb]uilds/
+CamoHuntAR/[Ll]ogs/
+CamoHuntAR/[Uu]ser[Ss]ettings/
+CamoHuntAR/MemoryCaptures/
+CamoHuntAR/Recordings/
+
+# IDE generated files
+CamoHuntAR/.vs/
+CamoHuntAR/*.csproj
+CamoHuntAR/*.sln
+CamoHuntAR/*.user
+CamoHuntAR/*.pidb
+CamoHuntAR/*.booproj
+CamoHuntAR/sysinfo.txt
+
+# Local verification artifacts
+artifacts/*
+!artifacts/.gitkeep
+
+# Generated presentation deliverables
+outputs/
+
+# Local planning notes kept outside the shared repository history
+AGENTS.md
+docs/mds/0.전반적인게임기획.md
+docs/mds/1.초기프로토타입_범위.md
+docs/mds/2.현재프로젝트_개선및개발계획.md

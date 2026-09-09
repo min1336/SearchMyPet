@@ -1,0 +1,17 @@
+{
+  "name": "CamoHuntAR.PlayModeTests",
+  "rootNamespace": "CamoHuntAR.Tests",
+  "references": [
+    "CamoHuntAR.Runtime",
+    "Unity.InputSystem",
+    "Unity.XR.ARFoundation",
+    "Unity.XR.ARSubsystems",
+    "Unity.XR.CoreUtils",
+    "Unity.XR.Simulation",
+    "UnityEngine.UI"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false
+}

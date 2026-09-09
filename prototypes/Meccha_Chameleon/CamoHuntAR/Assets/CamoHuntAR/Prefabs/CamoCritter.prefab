@@ -1,0 +1,252 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3605410839130215395
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4574566001528925408}
+  m_Layer: 0
+  m_Name: VisualRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4574566001528925408
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3605410839130215395}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8447766104733337558}
+  m_Father: {fileID: 8862739127616028829}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8472128668839794238
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8862739127616028829}
+  - component: {fileID: 8294985625030501761}
+  - component: {fileID: 2353714255882102917}
+  - component: {fileID: 7201246293555344029}
+  - component: {fileID: 6097696374947157260}
+  m_Layer: 0
+  m_Name: CamoCritter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8862739127616028829
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8472128668839794238}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4574566001528925408}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &8294985625030501761
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8472128668839794238}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.11699949
+  m_Height: 0.23999998
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.11999999, z: 0.035}
+--- !u!114 &2353714255882102917
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8472128668839794238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5730f4c1ceb8fa4d8585f6d359ae9dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CamoHuntAR.Runtime::CamoHuntAR.PlacementVisual
+  targetRenderers:
+  - {fileID: 154268101750657495}
+  previewAlpha: 0.55
+--- !u!114 &7201246293555344029
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8472128668839794238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26d4d6ec5c1640e1bc87943f95623d77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CamoHuntAR.Runtime::CamoHuntAR.CamouflageTexturePainter
+  targetRenderer: {fileID: 154268101750657495}
+  materialIndex: 0
+  textureResolution: 512
+--- !u!114 &6097696374947157260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8472128668839794238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4513f1c2dc3046ce80d99a37850469ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CamoHuntAR.Runtime::CamoHuntAR.CamouflageSurfacePaintController
+  paintCamera: {fileID: 0}
+  texturePainter: {fileID: 0}
+  cameraSampler: {fileID: 0}
+  brushRadius: 0.018
+--- !u!1001 &8266014063655002173
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 4574566001528925408}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.09522519
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.09522519
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.09522519
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.007362602
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.03625279
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.03304813
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: m_Name
+      value: MeshyOpenArmsCharacter
+      objectReference: {fileID: 0}
+    - target: {fileID: 8111781155169087978, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 343a3e483e0eef54c9149a9bf5053b17, type: 2}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: -4372093788385109707, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 649739514882122426}
+  m_SourcePrefab: {fileID: 100100000, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+--- !u!137 &154268101750657495 stripped
+SkinnedMeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 8111781155169087978, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+  m_PrefabInstance: {fileID: 8266014063655002173}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &3595548312009652488 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -4372093788385109707, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+  m_PrefabInstance: {fileID: 8266014063655002173}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &649739514882122426
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3595548312009652488}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -6734620852318575487, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+--- !u!4 &8447766104733337558 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3f1b4796eafd6dd4695fffd700952fdc, type: 3}
+  m_PrefabInstance: {fileID: 8266014063655002173}
+  m_PrefabAsset: {fileID: 0}
